@@ -4,7 +4,7 @@ This package provides a means for moving a husky using only GPS coordintes, and 
 
 ## Installation and Setup
 
-To setup the package, simply clone the repo into your catkin workspace and run `catkin_make`.
+To setup the package, simply clone the SureClean_UGV repo into your catkin workspace and run `catkin_make`.
 
 ### Passing GPS Coordinates
 
@@ -28,7 +28,7 @@ ii)
   $ roslaunch husky_gazebo husky_playpen.launch laser_enabled:=false
 ```
 
-3) In a new terminal, run `source devel/setup.bash` in the gps_nav package directory.
+3) In a new terminal, run `source devel/setup.bash` in the SureClean_UGV package directory.
 
 4) Launch the husky gps controller:
 ```
