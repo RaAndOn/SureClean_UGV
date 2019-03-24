@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- This will launch the node which converts GPS coordinates to odometry -->
+  <include file="$(find gps_waypoint_nav)/launch/navsat_transform.launch"></include>
+
+  <!-- This will launch the localization node -->
+  <node pkg="robot_localization" type="ekf_localization_node" name="ekf_se_odom" clear_params="true"/>
+    <!-- <param name="map_frame" value="map" type="string" /> -->
+  <!-- </node> -->
+
+  <!-- <node pkg="robot_localization" type="ekf_localization_node" name="ekf_se_map" clear_params="true">
+  </node> -->
+
+  <!-- This initializes a move_base server and species that we don't have a map of the area-->
+  <!-- Related error: "Waiting for move_base action Server to come up" -->
+  <include file="$(find husky_navigation)/launch/move_base.launch">
+    <arg name="no_static_map" value="true"/>
+  </include>
+
+  <!-- This node pretends the husky has a laser range finder because the navigation package needs that -->
+  <!-- Related error: "Waiting for move_base action Server to come up" -->
+  <!-- TODO: Do I need thes? -->
+  <node pkg="fake_localization" type="fake_localization" name="fake_localization" clear_params="true" output="screen"/>
+
+  <!-- This node pretends the husky has a laser range finder because the navigation package needs that -->
+  <node pkg="gps_waypoint_nav" type="gps_waypoint_nav" name="gps_nav" clear_params="true" output="screen"/>
+    <param name="/gps_waypoint_nav/coordinates_file" value="/waypoint_files/points_sim.txt" type="string" />
+</launch>

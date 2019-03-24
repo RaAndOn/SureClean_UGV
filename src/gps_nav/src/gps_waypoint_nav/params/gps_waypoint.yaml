@@ -1,0 +1,10 @@
+navsat_transform:
+  frequency: 30
+  delay: 3.0
+  magnetic_declination_radians: -0.16347917327 #Possibly wrong
+  yaw_offset: -1.57080 # Check what IMU 0 deg is
+  zero_altitude: true
+  broadcast_utm_transform: true
+  publish_filtered_gps: false
+  use_odometry_yaw: false
+  wait_for_datum: true

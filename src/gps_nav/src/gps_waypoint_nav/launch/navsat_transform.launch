@@ -1,0 +1,21 @@
+<launch>
+  <!-- See docs: http://docs.ros.org/lunar/api/robot_localization/html/integrating_gps.html#imu-data -->
+  <!-- TODO: Learn how to reference param files -->
+  <node pkg="robot_localization" type="navsat_transform_node" name="navsat_transform" clear_params="true">
+    <param name="broadcast_utm_transform" value="true"/>
+    <param name="frequency" value="30"/>
+    <param name="delay" value="3.0"/>
+    <param name="magnetic_declination_radians" value="-0.16347917327"/> <!--Possibly wrong-->
+    <param name="yaw_offset" value="-1.57080"/> <!--Check what IMU 0 deg is-->
+    <param name="zero_altitude" value="true"/>
+    <param name="publish_filtered_gps" value="false"/>
+    <param name="use_odometry_yaw" value="false"/>
+    <param name="wait_for_datum" value="false"/>
+    <!-- <rosparam command="load" file="$(find gps_waypoint_nav)/params/gps_waypoint.yaml" /> -->
+    
+    <!-- The "from" topics are the defualt navsat topics, the "to" topics are the actual topics being published to by the husky -->
+    <remap from="/odometry/filtered" to="/odometry/filtered"/>
+    <remap from="/gps/fix" to="/navsat/fix"/>
+    <remap from="/imu/data" to="/imu/data"/>
+  </node>
+</launch>
