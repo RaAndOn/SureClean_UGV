@@ -3,6 +3,7 @@
 #include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Quaternion.h>
+#include <geometry_msgs/Pose.h>
 #include <tf/transform_broadcaster.h>
 #include <math.h>
 
@@ -13,52 +14,49 @@ class Move
   public:
     Move()
     {
-      float kpLinear = 0.8;
-      float kdLinear = 0.8;
-      float kiLinear = 0.0;
+      kpLinear = 0.8;
+      kdLinear = 0.8;
+      kiLinear = 0.0;
 
-      float kpAngular = .5;
-      float kdAngular = .4;
-      float kiAngular = 0.0;
+      kpAngular = .5;
+      kdAngular = .4;
+      kiAngular = 0.0;
 
-      float prevErr = 0.0;
+      prevErr = 0.0;
 
-      float err = 0.0;
-      float errDiff = 0.0;
+      err = 0.0;
+      errDiff = 0.0;
 
-      int noCommandIterations = 0;
+      noCommandIterations = 0;
 
-      geometry_msgs::Twist command;
-
-      bool activeGoal;
-      nav_msgs::Odometry goal;
-      float yawGoal;
-      float yawCurr;
-
-      bool rotationComplete = false;
+      activeGoal = false;
+      
+      rotationComplete = false;
       pub_ = n_.advertise<geometry_msgs::Twist>("cmd_vel", 1000);
       subOdom_ = n_.subscribe("odometry/filtered", 1000, &Move::moveCallback, this);
       subGoal_ = n_.subscribe("goal", 1000, &Move::setGoal, this);
     }
 
-    float calculateYaw(nav_msgs::Odometry odom)
+    float calculateYaw(geometry_msgs::Pose pose)
     {
       double roll, pitch, yaw;
-      double quatx= odom.pose.pose.orientation.x;
-      double quaty= odom.pose.pose.orientation.y;
-      double quatz= odom.pose.pose.orientation.z;
-      double quatw= odom.pose.pose.orientation.w;
+      double quatx = pose.orientation.x;
+      double quaty = pose.orientation.y;
+      double quatz = pose.orientation.z;
+      double quatw = pose.orientation.w;
       tf::Quaternion quaternion(quatx, quaty, quatz, quatw);
       tf::Matrix3x3 rotMatrix(quaternion);
       rotMatrix.getRPY(roll, pitch, yaw);
       return yaw;
     }
 
-    void setGoal(const nav_msgs::Odometry newGoal)
+    void setGoal(const geometry_msgs::Pose newGoal)
     {
+      ROS_INFO("HERE");
       if(activeGoal == false)
       {
-        goal = newGoal;
+        startOdom = *(ros::topic::waitForMessage<nav_msgs::Odometry>("odometry/filtered", n_));
+        xGoal = fabs(getLinearMagnitude(newGoal) - getLinearMagnitude(startOdom.pose.pose));
         activeGoal = true;
         yawGoal = calculateYaw(newGoal);
         rotationComplete = false;
@@ -69,10 +67,10 @@ class Move
       }
     }
 
-    float getLinearMagnitude(nav_msgs::Odometry odom)
+    float getLinearMagnitude(geometry_msgs::Pose pose)
     {
-      float poseX = odom.pose.pose.position.x;
-      float poseY = odom.pose.pose.position.y;
+      float poseX = pose.position.x;
+      float poseY = pose.position.y;
       return sqrt(pow(poseX,2) + pow(poseY,2));
     }
 
@@ -96,9 +94,11 @@ class Move
 
     void linearPID(nav_msgs::Odometry odom)
     {
-      err = getLinearMagnitude(odom) - getLinearMagnitude(goal);
-
-      if (fabs(err) < .3)
+      float traveled = fabs(getLinearMagnitude(odom.pose.pose) - getLinearMagnitude(startOdom.pose.pose));
+      err = traveled - xGoal;
+      ROS_INFO("IN LINEAR");
+      ROS_INFO("%f",getLinearMagnitude(odom.pose.pose));
+      if (err > .05)
       {
         command.linear.x = 0;
         noCommandIterations++;
@@ -107,13 +107,14 @@ class Move
       {
         errDiff = prevErr - err;
         command.linear.x = -kpLinear*err - kdLinear*errDiff;
-        if (command.linear.x > 0.5)
+        if (command.linear.x > 0.0)
         {
-          command.linear.x = 0.5;
+          command.linear.x = .5;
         }
-        else if (command.linear.x < -0.5)
+        else if (command.linear.x < 0.0)
         {
-          command.linear.x = -0.5;
+          command.linear.x = 0;
+          noCommandIterations++;
         }
         prevErr = err;
       }
@@ -121,11 +122,11 @@ class Move
 
     void angularPID(nav_msgs::Odometry odom)
     {
-      yawCurr = calculateYaw(odom);
-
+      yawCurr = calculateYaw(odom.pose.pose);
+      ROS_INFO("IN ANGULAR");
       err = normalizeAngleDiff(yawCurr, yawGoal);
 
-      if (fabs(err) < .05)
+      if (fabs(err) < .01)
       {
         command.angular.z = 0;
         noCommandIterations++;
@@ -134,14 +135,13 @@ class Move
       {
         errDiff = prevErr - err;
         command.angular.z = -kpAngular*err - kdAngular*errDiff;
-        if (command.angular.z > 1)
+        if (command.angular.z > 0)
         {
-          command.angular.z = 1;
-          command.linear.z = 1;
+          command.angular.z = .3;
         }
-        else if (command.angular.z < -1)
+        else if (command.angular.z < -0)
         {
-          command.angular.z = -1;
+          command.angular.z = -.3;
         }
         prevErr = err;
       }
@@ -149,8 +149,7 @@ class Move
 
     void moveCallback(const nav_msgs::Odometry odom)
     {
-      noCommandIterations = 0;
-      while(activeGoal)
+      if(activeGoal)
       {
         if (!rotationComplete)
         {
@@ -160,6 +159,7 @@ class Move
           {
             rotationComplete = true;
             prevErr = 0;
+            noCommandIterations = 0;
           }
         }
         else
@@ -170,6 +170,7 @@ class Move
           {
             activeGoal = false;
             prevErr = 0;
+            noCommandIterations = 0;
           }
         }
       }
@@ -194,11 +195,15 @@ class Move
     geometry_msgs::Twist command;
 
     bool activeGoal;
-    nav_msgs::Odometry goal;
+    geometry_msgs::Pose goal;
     float yawGoal;
     float yawCurr;
 
+    float xGoal;
+
     bool rotationComplete;
+
+    nav_msgs::Odometry startOdom;
 
     ros::Publisher pub_;
     ros::Subscriber subOdom_;
