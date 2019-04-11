@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- This takes in odometry, gps, and imu and uses a kalman filter to give a better assesment of the pose
+  on the topic /odometry/filtered -->
+  <include file="$(find robot_localization)/launch/dual_ekf_navsat_sureclean.launch"></include>
+
+</launch>
