@@ -14,30 +14,34 @@ class Move
   public:
     Move()
     {
+      // Gains for linear PID controller
       kpLinear = 0.8;
       kdLinear = 0.8;
       kiLinear = 0.0;
 
+      // Gains for angular PID controller
       kpAngular = .5;
       kdAngular = .4;
       kiAngular = 0.0;
 
+      // Initialize Error terms
       prevErr = 0.0;
-
       err = 0.0;
       errDiff = 0.0;
 
+      // Initialize loop terms
       noCommandIterations = 0;
-
       activeGoal = false;
-      
       rotationComplete = false;
+
+      // Set publishers and subscribers 
       pub_ = n_.advertise<geometry_msgs::Twist>("cmd_vel", 1000);
       subOdom_ = n_.subscribe("odometry/filtered", 1000, &Move::moveCallback, this);
-      subGoal_ = n_.subscribe("goal", 1000, &Move::setGoal, this);
+      subGoal_ = n_.subscribe("goal", 1000, &Move::setGoalCallback, this);
     }
 
     float calculateYaw(geometry_msgs::Pose pose)
+    // Calculate and return the yaw of a pose quaternion
     {
       double roll, pitch, yaw;
       double quatx = pose.orientation.x;
@@ -50,16 +54,21 @@ class Move
       return yaw;
     }
 
-    void setGoal(const geometry_msgs::Pose newGoal)
+    void setGoalCallback(const geometry_msgs::Pose newGoal)
+    // Set a new goal
     {
-      ROS_INFO("HERE");
-      if(activeGoal == false)
+      if(activeGoal == false) // only set goal if there is not one currently active
       {
+        // Set the starting odometry as reference
         startOdom = *(ros::topic::waitForMessage<nav_msgs::Odometry>("odometry/filtered", n_));
+
+        // Set linear and angular goals
         xGoal = fabs(getLinearMagnitude(newGoal) - getLinearMagnitude(startOdom.pose.pose));
-        activeGoal = true;
         yawGoal = calculateYaw(newGoal);
+
+        // Set loop terms
         rotationComplete = false;
+        activeGoal = true;
       }
       else
       {
@@ -69,6 +78,7 @@ class Move
 
     float getLinearMagnitude(geometry_msgs::Pose pose)
     {
+      // This function gets the magnitude of the x and y positions
       float poseX = pose.position.x;
       float poseY = pose.position.y;
       return sqrt(pow(poseX,2) + pow(poseY,2));
@@ -77,6 +87,7 @@ class Move
 
     float normalizeAngleDiff(float currAngle, float goalAngle)
     {
+      // This function normalizes the difference between two angles to account for looping
       float diff = currAngle - goalAngle;
       if (diff > M_PI)
       {
@@ -94,6 +105,8 @@ class Move
 
     void linearPID(nav_msgs::Odometry odom)
     {
+      // This function performs a PID for the linear position. 
+      // It only moves forward, not back, due to the way the Sureclean robot picks up litter
       float traveled = fabs(getLinearMagnitude(odom.pose.pose) - getLinearMagnitude(startOdom.pose.pose));
       err = traveled - xGoal;
       ROS_INFO("IN LINEAR");
@@ -122,6 +135,7 @@ class Move
 
     void angularPID(nav_msgs::Odometry odom)
     {
+      // This function performs a PID for the angular rotation.
       yawCurr = calculateYaw(odom.pose.pose);
       ROS_INFO("IN ANGULAR");
       err = normalizeAngleDiff(yawCurr, yawGoal);
@@ -148,6 +162,8 @@ class Move
     }
 
     void moveCallback(const nav_msgs::Odometry odom)
+    // This function has the robot move to a goal position if a goal is active
+    // It is broken down such that the robot will first rotate and then move forward to simplify things
     {
       if(activeGoal)
       {
@@ -155,6 +171,7 @@ class Move
         {
           angularPID(odom);
           pub_.publish(command);
+          // If there are more than 10 loops without a command, move on
           if(noCommandIterations > 10)
           {
             rotationComplete = true;
@@ -166,6 +183,7 @@ class Move
         {
           linearPID(odom);
           pub_.publish(command);
+          // If there are more than 10 loops without a command, move on
           if(noCommandIterations > 10)
           {
             activeGoal = false;
