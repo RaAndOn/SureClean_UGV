@@ -9,6 +9,7 @@ project(move_pid)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED
   roscpp
+  tf
 )
 
 ## System dependencies are found with CMake's conventions
@@ -86,6 +87,7 @@ include_directories(
 
 
 add_executable(${PROJECT_NAME}_node src/move_pid.cpp)
+add_executable(human_to_odom src/human_to_odom.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -99,6 +101,10 @@ add_executable(${PROJECT_NAME}_node src/move_pid.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(human_to_odom
   ${catkin_LIBRARIES}
 )
 
