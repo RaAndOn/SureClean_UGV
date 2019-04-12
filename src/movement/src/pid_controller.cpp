@@ -15,32 +15,59 @@ class Move
     Move()
     {
       // Gains for linear PID controller
-      kpLinear = 0.8;
-      kdLinear = 0.8;
-      kiLinear = 0.0;
+      kpLinear_ = 1.0;
+      kdLinear_ = 0.8;
+      kiLinear_ = 0.0;
 
       // Gains for angular PID controller
-      kpAngular = .5;
-      kdAngular = .4;
-      kiAngular = 0.0;
+      kpAngular_ = 1;
+      kdAngular_ = .2;
+      kiAngular_ = .0;
 
       // Initialize Error terms
-      prevErr = 0.0;
-      err = 0.0;
-      errDiff = 0.0;
+      errLinear_ = 0.0;
+      errDiffLinear_ = 0.0;
+      prevErrLinear_ = 0;
+
+      errAngular_ = 0.0;
+      errDiffAngular_ = 0.0;
+      prevErrAngular_ = 0;
 
       // Initialize loop terms
-      noCommandIterations = 0;
-      activeGoal = false;
-      rotationComplete = false;
+      noCommandIterations_ = 0;
+      activeGoal_ = false;
+      rotationComplete_ = false;
+
+      // Min and Max values
+      minAngular_ = 0.2;
+      maxAngular_ = .5;
+
+      minLinear_ = 0.5;
+      maxLinear_ = 1.0;
+
 
       // Set publishers and subscribers 
       pub_ = n_.advertise<geometry_msgs::Twist>("cmd_vel", 1000);
-      subOdom_ = n_.subscribe("odometry/filtered", 1000, &Move::pointAndShootCallback, this);
+      // subOdom_ = n_.subscribe("odometry/filtered", 1000, &Move::pointAndShootCallback, this);
+      subOdom_ = n_.subscribe("odometry/filtered", 1000, &Move::pidCallback, this);
       subGoal_ = n_.subscribe("goal", 1000, &Move::setGoalCallback, this);
     }
 
-    float calculateYaw(geometry_msgs::Pose pose)
+    int signNum(float num)
+    // Return the sign of a number
+    {
+      return (num < 0.0) ? -1 : 1;
+    }
+
+    float calculateDistance(geometry_msgs::Pose currPose, geometry_msgs::Pose goalPose)
+    // This function calculates the linear distance between two points
+    {
+      float xErr = currPose.position.x - goalPose.position.x;
+      float yErr = currPose.position.y - goalPose.position.y;
+      return sqrt(pow(xErr,2) + pow(yErr,2));
+    }
+
+    float calculateYawFromQuaterion(geometry_msgs::Pose pose)
     // Calculate and return the yaw of a pose quaternion
     {
       double roll, pitch, yaw;
@@ -57,18 +84,20 @@ class Move
     void setGoalCallback(const geometry_msgs::Pose newGoal)
     // Set a new goal
     {
-      if(activeGoal == false) // only set goal if there is not one currently active
+      if(activeGoal_ == false) // only set goal if there is not one currently active
       {
         // Set the starting odometry as reference
-        startOdom = *(ros::topic::waitForMessage<nav_msgs::Odometry>("odometry/filtered", n_));
+        startOdom_ = *(ros::topic::waitForMessage<nav_msgs::Odometry>("odometry/filtered", n_));
 
-        // Set linear and angular goals
-        xGoal = fabs(getLinearMagnitude(newGoal) - getLinearMagnitude(startOdom.pose.pose));
-        yawGoal = calculateYaw(newGoal);
+        // Set goal pose for pidCallback
+        goal_ = newGoal;
+        // Set linear and angular goal terms for pointAndShootCallback
+        xGoal_ = calculateDistance(newGoal, startOdom_.pose.pose);
+        yawGoal_ = calculateYawFromQuaterion(newGoal);
 
         // Set loop terms
-        rotationComplete = false;
-        activeGoal = true;
+        rotationComplete_ = false;
+        activeGoal_ = true;
       }
       else
       {
@@ -76,19 +105,49 @@ class Move
       }
     }
 
-    float getLinearMagnitude(geometry_msgs::Pose pose)
+    //
+    // The following functions primarily relate to the point and shoot fucntion which has the robot rotate then move
+    //
+
+    void pointAndShootCallback(const nav_msgs::Odometry odom)
+    // This function has the robot move to a goal position if a goal is active
+    // It is broken down such that the robot will first rotate and then move forward to simplify things
     {
-      // This function gets the magnitude of the x and y positions
-      float poseX = pose.position.x;
-      float poseY = pose.position.y;
-      return sqrt(pow(poseX,2) + pow(poseY,2));
+      if(activeGoal_)
+      {
+        geometry_msgs::Twist command;
+
+        if (!rotationComplete_) // Complete Linear Motion
+        {
+          command = angularController(odom);
+          pub_.publish(command);
+          // If there are more than 10 loops without a command, move on
+          if(noCommandIterations_ > 10)
+          {
+            rotationComplete_ = true;
+            prevErrAngular_ = 0;
+            noCommandIterations_ = 0;
+          }
+        }
+        else // Complete linear motion
+        {
+          command = distanceController(odom);
+          pub_.publish(command);
+          // If there are more than 10 loops without a command, move on
+          if(noCommandIterations_ > 10)
+          {
+            activeGoal_ = false;
+            prevErrLinear_ = 0;
+            noCommandIterations_ = 0;
+          }
+        }
+      }
     }
 
-
     float normalizeAngleDiff(float currAngle, float goalAngle)
+    // This function normalizes the difference between two angles to account for looping
     {
-      // This function normalizes the difference between two angles to account for looping
-      float diff = currAngle - goalAngle;
+      float diff = goalAngle - currAngle;
       if (diff > M_PI)
       {
         return diff - 2*M_PI;
@@ -103,124 +162,168 @@ class Move
       }
     }
 
-    void linearPID(nav_msgs::Odometry odom)
+    geometry_msgs::Twist distanceController(nav_msgs::Odometry odom)
+    // This function moves the robot forward at a minimum speed until it traves a predetermined distance. 
+    // It only moves forward, not back, due to the way the Sureclean robot picks up litter
     {
-      // This function performs a PID for the linear position. 
-      // It only moves forward, not back, due to the way the Sureclean robot picks up litter
-      float traveled = fabs(getLinearMagnitude(odom.pose.pose) - getLinearMagnitude(startOdom.pose.pose));
-      err = traveled - xGoal;
-      if (err > .05)
+      geometry_msgs::Twist command;
+      float traveled = calculateDistance(odom.pose.pose, startOdom_.pose.pose);
+      errLinear_ = xGoal_ - traveled;
+      if (fabs(errLinear_) < .05)
       {
-        command.linear.x = 0;
-        noCommandIterations++;
+        noCommandIterations_++;
       }
       else
       {
-        noCommandIterations = 0;
-        errDiff = prevErr - err;
-        command.linear.x = -kpLinear*err - kdLinear*errDiff;
-        if (command.linear.x > 0.0)
-        {
-          command.linear.x = .5;
-        }
-        else if (command.linear.x < 0.0)
-        {
-          command.linear.x = 0;
-          noCommandIterations++;
-        }
-        prevErr = err;
+        command.linear.x = signNum(errLinear_)*minLinear_;
       }
+      return command;
     }
 
-    void angularPID(nav_msgs::Odometry odom)
+    geometry_msgs::Twist angularController(nav_msgs::Odometry odom)
+    // This function rotates the robot to a pre-determined goal yaw.
     {
-      // This function performs a PID for the angular rotation.
-      yawCurr = calculateYaw(odom.pose.pose);
-      err = normalizeAngleDiff(yawCurr, yawGoal);
+      geometry_msgs::Twist command;
+      float yawCurr = calculateYawFromQuaterion(odom.pose.pose);
+      errAngular_ = normalizeAngleDiff(yawCurr, yawGoal_);
 
-      if (fabs(err) < .01)
+      if (fabs(errAngular_) < .01)
       {
-        command.angular.z = 0;
-        noCommandIterations++;
+        noCommandIterations_++;
       }
       else
       {
-        noCommandIterations = 0;
-        errDiff = prevErr - err;
-        command.angular.z = -kpAngular*err - kdAngular*errDiff;
-        if (command.angular.z > 0)
-        {
-          command.angular.z = .3;
-        }
-        else if (command.angular.z < -0)
-        {
-          command.angular.z = -.3;
-        }
-        prevErr = err;
+        noCommandIterations_ = 0;
+        command.angular.z = signNum(errAngular_)*minAngular_;
       }
+      prevErrAngular_ = errAngular_;
+      return command;
     }
 
-    void pointAndShootCallback(const nav_msgs::Odometry odom)
+
+    //
+    // The following functions primarily relate to the PID fucntion which has the robot move and rotate simultaneously
+    //
+
+    void pidCallback(const nav_msgs::Odometry odom)
     // This function has the robot move to a goal position if a goal is active
     // It is broken down such that the robot will first rotate and then move forward to simplify things
     {
-      if(activeGoal)
+      if(activeGoal_)
       {
-        if (!rotationComplete)
+        geometry_msgs::Twist command = PID(odom);
+        pub_.publish(command);
+        // If there are more than 10 loops without a command, reset and move on
+        if(noCommandIterations_ > 10)
         {
-          angularPID(odom);
-          pub_.publish(command);
-          // If there are more than 10 loops without a command, move on
-          if(noCommandIterations > 10)
-          {
-            rotationComplete = true;
-            prevErr = 0;
-            noCommandIterations = 0;
-          }
-        }
-        else
-        {
-          linearPID(odom);
-          pub_.publish(command);
-          // If there are more than 10 loops without a command, move on
-          if(noCommandIterations > 10)
-          {
-            activeGoal = false;
-            prevErr = 0;
-            noCommandIterations = 0;
-          }
+          prevErrLinear_ = 0;
+          prevErrAngular_ = 0;
+          noCommandIterations_ = 0;
+          activeGoal_ = false;
         }
       }
     }
 
+    float calculateDeltaYawFromPositions(geometry_msgs::Pose currPose)
+    // This functino determines the yaw needed to rotate robot such that it is facing it's goal
+    {
+      float yawCurr = calculateYawFromQuaterion(currPose); // Get current yaw in odom frame
+
+      // Rotate positons by inverse transform, to put them in the robot's body frame
+      float robotFrameX = currPose.position.x*cos(yawCurr) + currPose.position.y*sin(yawCurr);
+      float robotFrameY = -currPose.position.x*sin(yawCurr) + currPose.position.y*cos(yawCurr);
+
+      float robotFrameGoalX = goal_.position.x*cos(yawCurr) + goal_.position.y*sin(yawCurr);
+      float robotFrameGoalY = -goal_.position.x*sin(yawCurr) + goal_.position.y*cos(yawCurr);
+
+      // Calculate the delta yaw needed to directly face the goal
+      float deltaX = robotFrameGoalX - robotFrameX;
+      float deltaY = robotFrameGoalY - robotFrameY;
+      return atan2(deltaY, deltaX);
+    }
+
+    geometry_msgs::Twist PID(nav_msgs::Odometry odom)
+    // This function performs a PID for the angular rotation.
+    {
+      geometry_msgs::Twist command;
+
+      // Angular PID
+      errAngular_ = calculateDeltaYawFromPositions(odom.pose.pose);
+      errDiffAngular_ = errAngular_ - prevErrAngular_;
+      command.angular.z = kpAngular_*errAngular_ + kdAngular_*errDiffAngular_;
+      if (fabs(command.angular.z) < minAngular_ && !rotationComplete_)
+      {
+        command.angular.z = signNum(command.angular.z)*minAngular_;
+      }
+
+      prevErrAngular_ = errAngular_;
+
+      // Ensure the robot has reached certain angular accuracy before moving forward      
+      if (fabs(errAngular_) < .02)
+      {
+        rotationComplete_ = true;
+      }
+
+      if (rotationComplete_)
+      {
+        errLinear_ = calculateDistance(odom.pose.pose, goal_);
+
+        // Conditions of goal completed
+        if (fabs(errLinear_) < .1)
+        {
+          command.linear.x = 0;
+          noCommandIterations_++;
+        }
+        else
+        {
+          // Linear PID
+          noCommandIterations_ = 0;
+          errDiffLinear_ = errLinear_ - prevErrLinear_;
+          command.linear.x = kpLinear_*errLinear_ + kdLinear_*errDiffLinear_;
+          if (command.linear.x < 0.0)
+          {
+            command.linear.x = 0;
+          }
+        }
+        prevErrLinear_ = errLinear_;
+      }
+      return command;
+    }
+
   private:
-    float kpLinear;
-    float kdLinear;
-    float kiLinear;
+    float kpLinear_;
+    float kdLinear_;
+    float kiLinear_;
 
-    float kpAngular;
-    float kdAngular;
-    float kiAngular;
+    float kpAngular_;
+    float kdAngular_;
+    float kiAngular_;
 
-    float prevErr;
+    float errLinear_;
+    float prevErrAngular_;
+    float errDiffLinear_;
 
-    float err;
-    float errDiff;
+    float errAngular_;
+    float prevErrLinear_;
+    float errDiffAngular_;
 
-    int noCommandIterations;
+    int noCommandIterations_;
 
-    geometry_msgs::Twist command;
+    bool activeGoal_;
+    geometry_msgs::Pose goal_;
+    float yawGoal_;
 
-    bool activeGoal;
-    geometry_msgs::Pose goal;
-    float yawGoal;
-    float yawCurr;
+    float xGoal_;
 
-    float xGoal;
+    bool rotationComplete_;
 
-    bool rotationComplete;
+    nav_msgs::Odometry startOdom_;
 
-    nav_msgs::Odometry startOdom;
+    float minAngular_;
+    float maxAngular_;
+
+    float minLinear_;
+    float maxLinear_;
 
     ros::Publisher pub_;
     ros::Subscriber subOdom_;
