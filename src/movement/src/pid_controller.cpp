@@ -109,8 +109,6 @@ class Move
       // It only moves forward, not back, due to the way the Sureclean robot picks up litter
       float traveled = fabs(getLinearMagnitude(odom.pose.pose) - getLinearMagnitude(startOdom.pose.pose));
       err = traveled - xGoal;
-      ROS_INFO("IN LINEAR");
-      ROS_INFO("%f",getLinearMagnitude(odom.pose.pose));
       if (err > .05)
       {
         command.linear.x = 0;
@@ -118,6 +116,7 @@ class Move
       }
       else
       {
+        noCommandIterations = 0;
         errDiff = prevErr - err;
         command.linear.x = -kpLinear*err - kdLinear*errDiff;
         if (command.linear.x > 0.0)
@@ -137,7 +136,6 @@ class Move
     {
       // This function performs a PID for the angular rotation.
       yawCurr = calculateYaw(odom.pose.pose);
-      ROS_INFO("IN ANGULAR");
       err = normalizeAngleDiff(yawCurr, yawGoal);
 
       if (fabs(err) < .01)
@@ -147,6 +145,7 @@ class Move
       }
       else
       {
+        noCommandIterations = 0;
         errDiff = prevErr - err;
         command.angular.z = -kpAngular*err - kdAngular*errDiff;
         if (command.angular.z > 0)
