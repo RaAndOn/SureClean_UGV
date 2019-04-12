@@ -86,7 +86,7 @@ include_directories(
 # add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 
-add_executable(${PROJECT_NAME}_node src/point_and_shoot.cpp)
+add_executable(${PROJECT_NAME}_node src/pid_controller.cpp)
 add_executable(human_to_odom src/human_to_odom.cpp)
 
 ## Rename C++ executable without prefix

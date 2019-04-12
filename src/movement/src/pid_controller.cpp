@@ -36,7 +36,7 @@ class Move
 
       // Set publishers and subscribers 
       pub_ = n_.advertise<geometry_msgs::Twist>("cmd_vel", 1000);
-      subOdom_ = n_.subscribe("odometry/filtered", 1000, &Move::moveCallback, this);
+      subOdom_ = n_.subscribe("odometry/filtered", 1000, &Move::pointAndShootCallback, this);
       subGoal_ = n_.subscribe("goal", 1000, &Move::setGoalCallback, this);
     }
 
@@ -161,7 +161,7 @@ class Move
       }
     }
 
-    void moveCallback(const nav_msgs::Odometry odom)
+    void pointAndShootCallback(const nav_msgs::Odometry odom)
     // This function has the robot move to a goal position if a goal is active
     // It is broken down such that the robot will first rotate and then move forward to simplify things
     {
