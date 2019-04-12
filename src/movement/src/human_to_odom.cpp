@@ -37,25 +37,26 @@ int main(int argc, char** argv) {
 
   // Convert arguments to float
   float distance = atof(argv[1]);
-  float goalYaw = atof(argv[2]);
-  goalYaw = goalYaw * M_PI/180; // Convert to radians
+  float deltaYaw = atof(argv[2]);
+  deltaYaw = deltaYaw * M_PI/180; // Convert to radians
 
 
   // Get current odometry of the robot
   nav_msgs::Odometry startOdom = *(ros::topic::waitForMessage<nav_msgs::Odometry>("odometry/filtered", n));
 
-  float yaw = calculateYaw(startOdom.pose.pose);
+  float currYaw = calculateYaw(startOdom.pose.pose);
+  float goalYaw = currYaw + deltaYaw;
   // Rotate Distance to robot's current rotaton
-  float distanceX = distance*cos(yaw);
-  float distanceY = distance*sin(yaw);
+  float deltaX = distance*cos(goalYaw);
+  float deltaY = distance*sin(goalYaw);
   // Add rotated distance to robot's current position
-  startOdom.pose.pose.position.x += distanceX;
-  startOdom.pose.pose.position.y += distanceY;
+  startOdom.pose.pose.position.x += deltaX;
+  startOdom.pose.pose.position.y += deltaY;
 
   // Set goal pose
   geometry_msgs::Pose goalPose;
   goalPose.position = startOdom.pose.pose.position;
-  goalPose.orientation = tf::createQuaternionMsgFromYaw(goalYaw+yaw);
+  goalPose.orientation = tf::createQuaternionMsgFromYaw(goalYaw);
 
   // Publish
   pub.publish(goalPose);
