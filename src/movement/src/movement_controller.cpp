@@ -173,9 +173,9 @@ class Move
       {
         noCommandIterations_++;
       }
-      else
+      else if (errLinear_ > 0)
       {
-        command.linear.x = signNum(errLinear_)*minLinear_;
+        command.linear.x = minLinear_;
       }
       return command;
     }
