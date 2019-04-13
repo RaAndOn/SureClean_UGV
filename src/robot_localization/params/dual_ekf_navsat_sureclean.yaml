@@ -157,7 +157,7 @@ navsat_transform:
   frequency: 30
   delay: 3.0
   magnetic_declination_radians: -0.16347917327  # For Pittsburgh, possibly wrong
-  yaw_offset: 1.570796327  # IMU reads 0 facing magnetic north, not east
+  yaw_offset: 0 # I think IMU reads 0 facing east 1.570796327  # IMU reads 0 facing magnetic north, not east
   zero_altitude: true
   broadcast_utm_transform: true
   publish_filtered_gps: true
