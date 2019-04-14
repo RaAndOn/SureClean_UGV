@@ -1,7 +1,7 @@
 #!/bin/bash
 source /etc/ros/setup.bash
 source /opt/ros/kinetic/setup.bash
-source /home/nvidia/husky_kinetic_ws/devel/setup.bash
+source /home/nvidia/SureClean_UGV/devel/setup.bash
 sleep 10
 # Restart husky service to launch default husky nodes and roscore
 sudo service husky-core restart

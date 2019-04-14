@@ -13,4 +13,4 @@ To setup any packages included in SureClean_UGV, simply clone the repo into home
 
 Then run `source devel/setup.bash`
 
-*Be sure to add* `source ~/SureClean_UGV/devel/setup.bash` *to the end of the UGV's `~/.bashrc` file*
+*Be sure to add* `source /home/nvidia/SureClean_UGV/devel/setup.bash` *to the end of the UGV's `~/.bashrc` file*
