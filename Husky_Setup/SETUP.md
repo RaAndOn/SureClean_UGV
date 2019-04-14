@@ -67,6 +67,8 @@ $ rosrun robot_upstart install husky_bringup/launch/um6_config --job husky-core 
 7) On first boot, the username will be administrator and the password will be clearpath.
 8) Please follow the configuration instructions on the screen. If the computer reboots, wait for the PC to boot to the login screen, and re-enter the login credentials.
 9) Once the computer configuration is complete, you may use passwd utility to change administrator account password.
+11) Configure the IMU
+a) Modify the `/etc/ros/setup.bash` to add the line `export HUSKY_IMU_PORT=/dev/ttyUSB0`. This will set up the husky to look for IMU data at this USB port. *NOTE:* `/dev/ttyUSB0` is the port on which IMU data comes in *at time of writing,* confirm this is still the case before running this.
 10) To setup a factory-standard Husky robot, ensure all your peripherals are plugged in, and run the following command:
 ```
 $ rosrun husky_bringup install
@@ -85,6 +87,10 @@ $ sudo service husky-core start
 $ sudo tail /var/log/upstart/husky-core.log -n 30
 ```
 3) Your husky should now be accepting commands from your joystick. The service will automatically start each time you boot your Husky's PC. 
+
+4) If you are not seeing IMU data published on any topic, run `roslaunch husky_bringup um7.launch` and check all IMU topics again. 
+If this starts publishing IMU Data be sure to perform the `Post Install Configuration`, which should fix the problem. Or checkout the 
+IMU package [website](http://wiki.ros.org/um7)
 
 
 ## [Diagnostics](http://www.clearpathrobotics.com/assets/guides/husky/InterfacingWithHusky.html)
