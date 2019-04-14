@@ -68,7 +68,13 @@ $ rosrun robot_upstart install husky_bringup/launch/um6_config --job husky-core 
 8) Please follow the configuration instructions on the screen. If the computer reboots, wait for the PC to boot to the login screen, and re-enter the login credentials.
 9) Once the computer configuration is complete, you may use passwd utility to change administrator account password.
 11) Configure the IMU
-a) Modify the `/etc/ros/setup.bash` to add the line `export HUSKY_IMU_PORT=/dev/ttyUSB0`. This will set up the husky to look for IMU data at this USB port. *NOTE:* `/dev/ttyUSB0` is the port on which IMU data comes in *at time of writing,* confirm this is still the case before running this.
+a) Modify the `/etc/ros/setup.bash` to add the following lines 
+```
+export HUSKY_IMU_PORT=/dev/ttyUSB0
+export HUSKY_IMU_RPY="0.0 0.0 3.1416"
+```
+These will 1) set up the husky to look for IMU data at this USB port and 2) override the default husky IMU orientation to the one we are using on project Sureclean. *NOTE:* `/dev/ttyUSB0` is the port on which IMU data comes in *at time of writing,* confirm this is still the case before running this.
+
 10) To setup a factory-standard Husky robot, ensure all your peripherals are plugged in, and run the following command:
 ```
 $ rosrun husky_bringup install
