@@ -48,8 +48,8 @@ class Move
 
       // Set publishers and subscribers 
       pub_ = n_.advertise<geometry_msgs::Twist>("cmd_vel", 1000);
-      // subOdom_ = n_.subscribe("odometry/filtered", 1000, &Move::pointAndShootCallback, this);
-      subOdom_ = n_.subscribe("odometry/filtered", 1000, &Move::pidCallback, this);
+      subOdom_ = n_.subscribe("odometry/filtered", 1000, &Move::pointAndShootCallback, this);
+      // subOdom_ = n_.subscribe("odometry/filtered", 1000, &Move::pidCallback, this);
       subGoal_ = n_.subscribe("goal", 1000, &Move::setGoalCallback, this);
     }
 

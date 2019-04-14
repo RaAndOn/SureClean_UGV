@@ -71,7 +71,7 @@ $ rosrun robot_upstart install husky_bringup/launch/um6_config --job husky-core 
 a) Modify the `/etc/ros/setup.bash` to add the following lines 
 ```
 export HUSKY_IMU_PORT=/dev/ttyUSB0
-export HUSKY_IMU_RPY="0.0 0.0 3.1416"
+export HUSKY_IMU_RPY="0.0 3.1416 0.0"
 ```
 These will 1) set up the husky to look for IMU data at this USB port and 2) override the default husky IMU orientation to the one we are using on project Sureclean. *NOTE:* `/dev/ttyUSB0` is the port on which IMU data comes in *at time of writing,* confirm this is still the case before running this.
 
