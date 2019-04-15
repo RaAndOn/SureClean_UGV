@@ -1,11 +1,20 @@
-Static IP address : 172.26.198.249
 
-Jetson Name : Nvidia
+Connect to CMU Device:
+    Static IP address : 172.26.198.249
 
-A general SSH command : ssh Nvidia@172.26.198.249
+    Jetson Name : Nvidia
 
-Make sure the Jetson is connect to "CMU Device" (It is set as default)
+    A general SSH command : ssh nvidia@172.26.198.249
 
-Should the jetson loose wi-fi connection in the elevator or outside, use joystick to control the Husky
+    Make sure the Jetson is connected to "CMU Device" (It is set as default)
 
-The other alternative is to use laptop and directly interface the Husky via the RS-232
+    Should the jetson loose wi-fi connection in the elevator or outside, use joystick to control the Husky
+
+    The other alternative is to use laptop and directly interface the Husky via the RS-232
+    
+    
+ Connect to TP-Link_E7E8:
+    Static IP : 192.168.0.126
+    ssh nvidia@192.168.0.126
+    
+    
