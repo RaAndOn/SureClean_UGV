@@ -14,7 +14,9 @@ Connect to CMU Device:
     
     
  Connect to TP-Link_E7E8:
+ 
     Static IP : 192.168.0.126
+    
     ssh nvidia@192.168.0.126
     
     
