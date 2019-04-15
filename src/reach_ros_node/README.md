@@ -24,7 +24,7 @@ Right now this supports all NMEA messages from the package, while some are not u
 ## Driver Details
 
 * Publishes GPS fix, velocity, and time reference
-  * `/tcpfix` - NavSatFixed
+  * `/gps/fix` - NavSatFixed
   * `/tcpvel` - TwistedStamped
   * `/tcptime` - TimeReference
 * Can specify the following launch parameters
