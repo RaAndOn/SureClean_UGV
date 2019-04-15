@@ -60,8 +60,9 @@ int main(int argc, char** argv) {
 
   // Publish
   pub.publish(goalPose);
-  ROS_INFO("Goal Published");
-
+  ROS_INFO("Goal Published:");
+  ROS_INFO("Rotate %f degrees", deltaYaw);
+  ROS_INFO("Move %f meters", distance);
   ros::shutdown();
 
   return 0;

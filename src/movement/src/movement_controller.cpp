@@ -48,6 +48,8 @@ class Move
 
       // Set publishers and subscribers 
       pub_ = n_.advertise<geometry_msgs::Twist>("cmd_vel", 1000);
+      // Uncomment "pointAndShootCallback" and comment "pidCallback" to run simple rotate and move forward code
+      // Or uncomment "pidCallback" and comment "pointAndShootCallback" to run simultaneous rotate and move forward code
       subOdom_ = n_.subscribe("odometry/filtered", 1000, &Move::pointAndShootCallback, this);
       // subOdom_ = n_.subscribe("odometry/filtered", 1000, &Move::pidCallback, this);
       subGoal_ = n_.subscribe("goal", 1000, &Move::setGoalCallback, this);
@@ -117,7 +119,7 @@ class Move
       {
         geometry_msgs::Twist command;
 
-        if (!rotationComplete_) // Complete Linear Motion
+        if (!rotationComplete_) // Complete angular motion
         {
           command = angularController(odom);
           pub_.publish(command);
@@ -202,7 +204,7 @@ class Move
 
 
     //
-    // The following functions primarily relate to the PID fucntion which has the robot move and rotate simultaneously
+    // The following functions primarily relate to the PID function which has the robot move and rotate simultaneously
     //
 
     void pidCallback(const nav_msgs::Odometry odom)
@@ -225,7 +227,7 @@ class Move
     }
 
     float calculateDeltaYawFromPositions(geometry_msgs::Pose currPose)
-    // This functino determines the yaw needed to rotate robot such that it is facing it's goal
+    // This function determines the yaw needed to rotate robot such that it is facing its goal
     {
       float yawCurr = calculateYawFromQuaterion(currPose); // Get current yaw in odom frame
 
