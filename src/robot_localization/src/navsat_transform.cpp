@@ -54,7 +54,7 @@ namespace RobotLocalization
     has_transform_gps_(false),
     has_transform_imu_(false),
     transform_good_(false),
-    gps_frame_id_(""),
+    gps_frame_id_("rear_right_wheel_link"),
     gps_updated_(false),
     odom_updated_(false),
     publish_gps_(false),

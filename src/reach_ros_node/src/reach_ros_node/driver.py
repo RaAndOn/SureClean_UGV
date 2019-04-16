@@ -51,7 +51,7 @@ class RosNMEADriver(object):
         # Frame of references we should publish in
         self.frame_timeref = rospy.get_param('~frame_timeref', 'gps')
         self.frame_gps = rospy.get_param('~frame_gps', 'rear_right_wheel_link')
-        self.use_rostime = rospy.get_param('~use_rostime', False)
+        self.use_rostime = rospy.get_param('~use_rostime', True)
         self.use_rmc = rospy.get_param('~use_rmc', False)
         # Flags for what information we have
         self.has_fix = False
