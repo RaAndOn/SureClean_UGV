@@ -16,7 +16,8 @@ rosnode kill /imu_filter
 # Wait to be sure it has taken effect
 sleep 2
 # launch imu nodes
-rosrun um7 um7_driver _port:=/dev/ttyIMU0 &
-roslaunch robot_localization imu_transformer.launch &
+# rosrun um7 um7_driver _port:=/dev/ttyIMU0 _covariance:="100 100 100 100 100 100 0 0 0" &
+roslaunch robot_localization um7_mag.launch
+# roslaunch robot_localization imu_transformer.launch &
 # Launch teleop node
 roslaunch teleop_twist_joy teleop.launch &
