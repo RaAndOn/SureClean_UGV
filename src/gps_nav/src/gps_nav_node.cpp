@@ -3,7 +3,7 @@
 #include <geometry_msgs/Quaternoin.h>
 #include <nav_msgs/Odometry.h>
 #include <gps_nav/GoalCollect.h>
-#include <vector> 
+#include <queue> 
 #include <math.h>
 
 using namespace std;
@@ -22,6 +22,8 @@ ros::Publisher pub_cmd;
 ros::Publisher pub_status;
 ros::ServiceServer server_goal;
 ros::ServiceServer server_move;
+ros::ServiceServer server_stop;
+ros::ServiceServer server_stop;
 ros::ServiceClient client_goal;
 
 sensor_msgs::NavSatFix goal_gps_;
@@ -35,10 +37,10 @@ geometry_msgs::Quaternoin robot_pose;
 geometry_msgs::Twist robot_vel;
 geometry_msgs::Twist ctrl_msg;
 
-vector<geometry_msgs::Ouaternoin> goal_list;
+queue<geometry_msgs::Ouaternoin> goal_list;
 
 int ori_index = 0;
-bool status = false;
+bool status_ = false;
 bool move_signal = false;
 bool move_status = false;
 bool ori_status = false;
@@ -53,6 +55,17 @@ double UTC2Map(double lat1, double lat2, double lon1, double lon2) {
     double c = 2 * atan2(sqrt(a), sqrt(1-a));
     double d = R * c;
     return d * 1000;
+}
+
+void status_check(bool linear, bool angular) {
+    std_msgs::Bool status_msgs;
+    status_msgs.data = false;
+    status_ = false;
+    if (linear && angular) {
+        status_msgs.data = true;
+        status_ = true;
+    }
+    pub_status.publish(status_msgs);
 }
 
 void contrl_husky() {
@@ -70,6 +83,8 @@ void contrl_husky() {
     float dy = goal_pose.y - robot_pose.y;
     double d_linear = sqrt(pow(dx,2) + pow(dy,2));
 
+    bool check_linear;
+    bool check_angular;
     
     if (d_linear > linear_thred)) {
         double ctrl_vel_linear = robot_vel.linear.x;
@@ -77,9 +92,11 @@ void contrl_husky() {
             d_linear = DIS_RANGE;
         }
         ctrl_msg.linear.x  = Kp * MAX_SPEED * d_linear/DIS_RANGE - Kd * ctrl_vel_linear;
+        check_linear = false;
     }
     else {
         ctrl_msg.linear.x = 0;
+        check_linear = true;
     }
 
     if (fabs(d_angular) > angular_thred) {
@@ -88,12 +105,17 @@ void contrl_husky() {
             d_angular = M_PI/2;
         }
         ctrl_msg.angular.z = Kp * MAX_ANGULAR * d_angular / (M_PI/2) - Kd * ctrl_vel_angular;
+        check_angular = false;
     }
     else {
         ctrl_msg.angular.z = 0;
+        check_angular = true;
     }
 
+    status_check(check_linear,check_angular);
 }
+
+
 
 void getPose(const sensor_msgs::NavSatFix &msg) {
     // set origin
@@ -139,8 +161,10 @@ void getPose(const sensor_msgs::NavSatFix &msg) {
     robot_pose.z = 0;
     robot_pose.w = angular;
 
-    control_husky();
-    status_check();
+    if (move_signal) {
+        control_husky();
+    }
+    
 }
 
 void updateOdom(const nav_msgs::Odometry &msg) {
@@ -158,9 +182,28 @@ void updateOdom(const nav_msgs::Odometry &msg) {
 
 bool getGoal(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
     goal_list.push_back(gps_current = ori_gps);
+    return true;
 }
-bool getGoal(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
-    
+bool NextGoalMove(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
+    if (goal_list.empty()) {
+        move_signal = false
+        ROS_ERROR("No goal gps in the goal list")
+        return false;
+    }
+    move_signal = true;
+    goal_gps_ = goal_list.front();
+    goal_list.pop();
+    ROS_INFO("----------Go to the next goal--------");
+    move_signal = true;
+    return true;
+}
+
+bool emergency_stop(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
+    move_signal = false;
+}
+
+bool continue_move(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
+    move_signal = true;
 }
 
 
@@ -169,11 +212,13 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "image_converter");
     ros::NodeHandle n;
     pub_cmd = n.advertise<geometry_msgs::Twist>("/cmd_vel",0);
+    pub_status = n.advertise<std_msgs::Bool>("/goal_achieve_status",0);
     sub_odom = n.subscribe("/husky_velocity_controller/odom",0,&updateOdom);
     sub_gps = n.subscribe("/gps/filtered",0,&getPose);
     server_goal = n.advertiseService("/collect_goal",&getGoal);
-    server_move = n.advertiseService("/move_husky",&NextGoalMove);
-
+    server_move = n.advertiseService("/move_next_goal",&NextGoalMove);
+    server_stop = n.advertiseService("/emergency_stop",&emergency_stop);
+    server_go = n.advertiseService("/continue_mission",&continue_move);
 
     ros::spin();
 }
