@@ -1,13 +1,14 @@
+
 #include <ros/ros.h>
 #include <sensor_msgs/NavSatFix.h>
-#include <geometry_msgs/Quaternoin.h>
+#include <geometry_msgs/Quaternion.h>
 #include <nav_msgs/Odometry.h>
-#include <gps_nav/GoalCollect.h>
+#include <std_srvs/Empty.h>
+#include <std_msgs/Bool.h>
 #include <queue> 
 #include <math.h>
 
 using namespace std;
-
 
 #define THRED 0.05
 #define RADIUS_EARTH 6378.137
@@ -16,14 +17,15 @@ using namespace std;
 #define DIS_RANGE 10
 #define Aver_Time 50
 
-ros::Subscribe sub_gps;
-ros::Subscribe sub_odom;
+ros::Subscriber sub_gps;
+ros::Subscriber sub_odom;
 ros::Publisher pub_cmd;
 ros::Publisher pub_status;
 ros::ServiceServer server_goal;
 ros::ServiceServer server_move;
 ros::ServiceServer server_stop;
-ros::ServiceServer server_stop;
+ros::ServiceServer server_go;
+
 ros::ServiceClient client_goal;
 
 sensor_msgs::NavSatFix goal_gps_;
@@ -31,12 +33,12 @@ sensor_msgs::NavSatFix ori_gps_;
 sensor_msgs::NavSatFix gps_current_;
 
 
-geometry_msgs::Ouaternoin goal_pose_;
-geometry_msgs::Quaternoin robot_pose_;
+geometry_msgs::Quaternion goal_pose_;
+geometry_msgs::Quaternion robot_pose_;
 
 geometry_msgs::Twist robot_vel_;
 
-queue<geometry_msgs::Ouaternoin> goal_list_;
+queue<sensor_msgs::NavSatFix> goal_list_;
 
 int ori_index_ = 0;
 bool status_ = false;
@@ -69,7 +71,6 @@ void status_check(bool linear, bool angular) {
 
 void contrl_husky() {
     geometry_msgs::Twist ctrl_msg;
-    geometry_msgs::Ouaternoin goal_pose_;
 
     float angular_thred = 0.02;
     float linear_thred = 0.1;
@@ -88,7 +89,7 @@ void contrl_husky() {
     bool check_linear;
     bool check_angular;
     
-    if (d_linear > linear_thred)) {
+    if (d_linear > linear_thred) {
         double ctrl_vel_linear = robot_vel_.linear.x;
         if (d_linear > DIS_RANGE) {
             d_linear = DIS_RANGE;
@@ -120,27 +121,30 @@ void contrl_husky() {
 
 
 
-void getPose(const sensor_msgs::NavSatFix &msg) {
+void getPose(const sensor_msgs::NavSatFix msg) {
     // set origin
+    double lat_ori = 0;
+    double lon_ori = 0;
     if (move_status_ == false && ori_index_ <= Aver_Time && ori_status_ == false) {
-        ori_gps = msg;
+        ori_gps_ = msg;
         ROS_INFO("Initializing Origin --- Robot NOT Moving");
         ROS_INFO("Yaw is not useful right now");
         //use for generate postion
-        double lat_ori += ori_gps.latitude;
-        double lon_ori += ori_gps.longitude;
+        lat_ori += ori_gps_.latitude;
+        lon_ori += ori_gps_.longitude;
         ori_index_ += 1;
     }
 
     if ((ori_index_ > Aver_Time || move_status_ == true) && ori_status_ == false) {
         lat_ori = lat_ori / ori_index_;
         lon_ori = lon_ori / ori_index_;
-        ori_gps.latitude = lat_ori;
-        ori_gps.longitude = lon_ori;
-        ROS_INFO("------------------Origin Initialization Completed-------------")
+        ori_gps_.latitude = lat_ori;
+        ori_gps_.longitude = lon_ori;
+        ROS_INFO("------------------Origin Initialization Completed-------------");
         ori_status_ = true;
     }
-    gps_current_ = ori_gps;
+
+    gps_current_ = msg;
 
     // use for yaw generation
     double lat1 = gps_current_.latitude;
@@ -148,7 +152,7 @@ void getPose(const sensor_msgs::NavSatFix &msg) {
 
     // the new gps signal
     double lat2 = msg.latitude;
-    double lat2 = msg.longitude;
+    double lon2 = msg.longitude;
 
     // define the x-axis point to the North ----- latitude
     double dx = UTC2Map(lat1,lat2,0,0);
@@ -167,7 +171,7 @@ void getPose(const sensor_msgs::NavSatFix &msg) {
     double dx_goal = UTC2Map(lat2,lat_goal,0,0);
     double dy_goal = UTC2Map(0,0,lon2,lon_goal);
 
-    goal_pose_.w = atan(dy_goal,dx_goal);
+    goal_pose_.w = atan2(dy_goal,dx_goal);
     
     robot_pose_.x = x;
     robot_pose_.y = y;
@@ -175,7 +179,7 @@ void getPose(const sensor_msgs::NavSatFix &msg) {
     robot_pose_.w = angular;
 
     if (move_signal_) {
-        control_husky();
+        contrl_husky();
     }
     
 }
@@ -194,13 +198,14 @@ void updateOdom(const nav_msgs::Odometry &msg) {
 // gps_nav::GoalCollect::Response &res
 
 bool getGoal(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
-    goal_list_.push_back(gps_current_ = ori_gps);
+    goal_list_.push(gps_current_);
     return true;
 }
+
 bool NextGoalMove(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
     if (goal_list_.empty()) {
-        move_signal_ = false
-        ROS_ERROR("No goal gps in the goal list")
+        move_signal_ = false;
+        ROS_ERROR("No goal gps in the goal list");
         return false;
     }
     move_signal_ = true;
@@ -222,10 +227,12 @@ bool NextGoalMove(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
 
 bool emergency_stop(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
     move_signal_ = false;
+    return true;
 }
 
 bool continue_move(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
     move_signal_ = true;
+    return true;
 }
 
 
@@ -240,7 +247,7 @@ int main(int argc, char** argv)
     server_goal = n.advertiseService("/collect_goal",&getGoal);
     server_move = n.advertiseService("/move_next_goal",&NextGoalMove);
     server_stop = n.advertiseService("/emergency_stop",&emergency_stop);
-    server_go = n.advertiseService("/continue_mission",&continue_move);
+    server_go   = n.advertiseService("/continue_mission",&continue_move);
 
     ros::spin();
 }
