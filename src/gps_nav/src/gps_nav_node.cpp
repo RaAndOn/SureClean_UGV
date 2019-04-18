@@ -1,5 +1,6 @@
 
 #include <ros/ros.h>
+#include <iomanip>
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Quaternion.h>
 #include <nav_msgs/Odometry.h>
@@ -10,7 +11,7 @@
 
 using namespace std;
 
-#define THRED 0.05
+#define THRED 0.01
 #define RADIUS_EARTH 6378.137
 #define MAX_SPEED 1
 #define MAX_ANGULAR 0.5
@@ -54,8 +55,8 @@ double UTC2Map(double lat1, double lat2, double lon1, double lon2) {
                cos(lat1 * M_PI / 180) * cos(lat2 * M_PI / 180) *
                sin(dLon/2) * sin(dLon/2);
     double c = 2 * atan2(sqrt(a), sqrt(1-a));
-    double d = R * c;
-    return d * 1000;
+    double d = R * c * 1000;
+    return d;
 }
 
 void status_check(bool linear, bool angular) {
@@ -103,11 +104,11 @@ void contrl_husky() {
     }
 
     if (fabs(d_angular) > angular_thred) {
-        double ctrl_vel_angular = robot_vel_.angular.z;
+        double ctrl_vel_angular = ctrl_msg.angular.z;
         if (fabs(d_angular) > M_PI/2) {
             d_angular = M_PI/2;
         }
-        ctrl_msg.angular.z = Kp * MAX_ANGULAR * d_angular / (M_PI/2) - Kd * ctrl_vel_angular;
+        ctrl_msg.angular.z = - (Kp * MAX_ANGULAR * d_angular / (M_PI/2) - Kd * ctrl_vel_angular);
         check_angular = false;
     }
     else {
@@ -123,28 +124,24 @@ void contrl_husky() {
 
 void getPose(const sensor_msgs::NavSatFix msg) {
     // set origin
-    double lat_ori = 0;
-    double lon_ori = 0;
+
     if (move_status_ == false && ori_index_ <= Aver_Time && ori_status_ == false) {
         ori_gps_ = msg;
         ROS_INFO("Initializing Origin --- Robot NOT Moving");
         ROS_INFO("Yaw is not useful right now");
         //use for generate postion
-        lat_ori += ori_gps_.latitude;
-        lon_ori += ori_gps_.longitude;
         ori_index_ += 1;
     }
 
     if ((ori_index_ > Aver_Time || move_status_ == true) && ori_status_ == false) {
-        lat_ori = lat_ori / ori_index_;
-        lon_ori = lon_ori / ori_index_;
-        ori_gps_.latitude = lat_ori;
-        ori_gps_.longitude = lon_ori;
+
+        cout << setprecision(10) <<"Ori_GPS = " <<ori_gps_.latitude<<"; "<<ori_gps_.longitude<<"; "<<endl;
         ROS_INFO("------------------Origin Initialization Completed-------------");
         ori_status_ = true;
     }
 
-    gps_current_ = msg;
+    double lat_ori = ori_gps_.latitude;
+    double lon_ori = ori_gps_.longitude;
 
     // use for yaw generation
     double lat1 = gps_current_.latitude;
@@ -153,6 +150,8 @@ void getPose(const sensor_msgs::NavSatFix msg) {
     // the new gps signal
     double lat2 = msg.latitude;
     double lon2 = msg.longitude;
+    cout << setprecision(10) << "GPS_ = "<<lat2<<"; "<<lon2<<endl;
+    cout << setprecision(10) << "Ori_GPS_ = "<<lat_ori<<"; "<<lon_ori<<endl;
 
     // define the x-axis point to the North ----- latitude
     double dx = UTC2Map(lat1,lat2,0,0);
@@ -161,6 +160,7 @@ void getPose(const sensor_msgs::NavSatFix msg) {
     double angular = atan2(dy,dx);
 
     // get map position
+    // cout << setprecision(10) << "Diff_GPS = "<<lat2-lat_ori<<"; "<<lon2-lon_ori<<endl;
     double x = UTC2Map(lat_ori,lat2,0,0);
     double y = UTC2Map(0,0,lon_ori,lon2);
 
@@ -173,10 +173,17 @@ void getPose(const sensor_msgs::NavSatFix msg) {
 
     goal_pose_.w = atan2(dy_goal,dx_goal);
     
+    cout <<"Goal Pose = " << goal_pose_.x << "; "<< goal_pose_.y << "; " << goal_pose_.w <<endl;
+    
     robot_pose_.x = x;
     robot_pose_.y = y;
     robot_pose_.z = 0;
     robot_pose_.w = angular;
+
+    gps_current_ = msg;
+    cout <<"Current Pose = " << x << "; "<< y <<"; " << angular <<endl;
+
+    ROS_INFO("------------------------------");
 
     if (move_signal_) {
         contrl_husky();
