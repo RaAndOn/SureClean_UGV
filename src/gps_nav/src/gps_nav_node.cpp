@@ -111,6 +111,11 @@ void contrl_husky() {
         ctrl_msg.angular.z = - (Kp * MAX_ANGULAR * d_angular / (M_PI/2) - Kd * ctrl_vel_angular);
         check_angular = false;
     }
+
+    if (fabs(d_angular) > M_PI/2) {
+        ctrl_msg.linear.x = 0;
+    }
+
     else {
         ctrl_msg.angular.z = 0;
         check_angular = true;
