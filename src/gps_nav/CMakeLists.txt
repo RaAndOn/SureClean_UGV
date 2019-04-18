@@ -9,6 +9,8 @@ project(gps_nav)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  std_msgs
+  std_srvs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -147,6 +149,10 @@ include_directories(
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
+
+add_executable(gps_nav_node src/gps_nav_node.cpp)
+add_dependencies(gps_nav_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(gps_nav_node ${catkin_LIBRARIES})
 
 #############
 ## Install ##
