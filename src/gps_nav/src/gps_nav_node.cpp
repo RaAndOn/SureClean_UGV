@@ -2,7 +2,7 @@
 #include <ros/ros.h>
 #include <iomanip>
 #include <sensor_msgs/NavSatFix.h>
-#include <geometry_msgs/Quaternion.h>
+#include <geometry_msgs/Point.h>
 #include <nav_msgs/Odometry.h>
 #include <std_srvs/Empty.h>
 #include <std_msgs/Bool.h>
@@ -14,7 +14,9 @@ using namespace std;
 #define THRED 0.01
 #define RADIUS_EARTH 6378.137
 #define MAX_SPEED 1
+#define MIN_SPEED 0.3
 #define MAX_ANGULAR 0.5
+#define MIN_ANGULAR 0.1
 #define DIS_RANGE 10
 #define Aver_Time 50
 
@@ -33,9 +35,9 @@ sensor_msgs::NavSatFix goal_gps_;
 sensor_msgs::NavSatFix ori_gps_;
 sensor_msgs::NavSatFix gps_current_;
 
-
-geometry_msgs::Quaternion goal_pose_;
-geometry_msgs::Quaternion robot_pose_;
+// Point x -- north, y -- west and z -- yaw
+geometry_msgs::Point goal_pose_;
+geometry_msgs::Point robot_pose_;
 
 geometry_msgs::Twist robot_vel_;
 
@@ -48,6 +50,11 @@ bool move_status_ = false;
 bool ori_status_ = false;
 
 double UTC2Map(double lat1, double lat2, double lon1, double lon2) {
+    int sign = 1;
+    if (lat2 >= lat1) sign = 1;  // heading north
+    else sign = -1;
+    if (lon2 <= lon1) sign = 1;  // heading west
+    else sign = -1;
     double R = RADIUS_EARTH;
     double dLat = lat2 * M_PI / 180 - lat1 * M_PI / 180;
     double dLon = lon2 * M_PI / 180 - lon1 * M_PI / 180;
@@ -55,7 +62,7 @@ double UTC2Map(double lat1, double lat2, double lon1, double lon2) {
                cos(lat1 * M_PI / 180) * cos(lat2 * M_PI / 180) *
                sin(dLon/2) * sin(dLon/2);
     double c = 2 * atan2(sqrt(a), sqrt(1-a));
-    double d = R * c * 1000;
+    double d = sign * R * c * 1000;
     return d;
 }
 
@@ -66,22 +73,32 @@ void status_check(bool linear, bool angular) {
     if (linear && angular) {
         status_msgs.data = true;
         status_ = true;
+        move_signal_ = false;
     }
     pub_status.publish(status_msgs);
+}
+
+float normalizeAngleDiff(float currAngle, float goalAngle)
+// This function normalizes the difference between two angles to account for looping
+{
+    float diff = goalAngle - currAngle;
+    if (diff > M_PI) return diff - 2 * M_PI;
+    else if (diff < -M_PI) return diff + 2 * M_PI;
+    else return diff;
 }
 
 void contrl_husky() {
     geometry_msgs::Twist ctrl_msg;
 
-    float angular_thred = 0.02;
+    float angular_thred = 0.05;
     float linear_thred = 0.1;
     // PD control of husky
     float Kp = 1;
     float Kd = 0.05;
 
-    float goal_angular = goal_pose_.w;
-    float current_angular = robot_pose_.w;
-    float d_angular = goal_angular - current_angular;
+    float goal_angular = goal_pose_.z;
+    float current_angular = robot_pose_.z;
+    float d_angular = normalizeAngleDiff(current_angular, goal_angular);
 
     float dx = goal_pose_.x - robot_pose_.x;
     float dy = goal_pose_.y - robot_pose_.y;
@@ -96,6 +113,8 @@ void contrl_husky() {
             d_linear = DIS_RANGE;
         }
         ctrl_msg.linear.x  = Kp * MAX_SPEED * d_linear/DIS_RANGE - Kd * ctrl_vel_linear;
+        if (ctrl_msg.linear.x < MIN_SPEED){
+	        ctrl_msg.linear.x = MIN_SPEED;
         check_linear = false;
     }
     else {
@@ -103,28 +122,25 @@ void contrl_husky() {
         check_linear = true;
     }
 
-    if (fabs(d_angular) > angular_thred) {
+    if (fabs(d_angular) > angular_thred && check_linear == false) {
         double ctrl_vel_angular = ctrl_msg.angular.z;
         if (fabs(d_angular) > M_PI/2) {
             d_angular = M_PI/2;
         }
-        ctrl_msg.angular.z = - (Kp * MAX_ANGULAR * d_angular / (M_PI/2) - Kd * ctrl_vel_angular);
+        if (ctrl_msg.angular.z < MIN_ANGULAR) {
+	        ctrl_msg.angular.z = MIN_ANGULAR;
+        // right handed
+        ctrl_msg.angular.z =  (Kp * MAX_ANGULAR * d_angular / (M_PI/2) - Kd * ctrl_vel_angular);
         check_angular = false;
     }
-
-    if (fabs(d_angular) > M_PI/2) {
-        ctrl_msg.linear.x = 0;
-    }
-
     else {
         ctrl_msg.angular.z = 0;
         check_angular = true;
     }
     pub_cmd.publish(ctrl_msg);
-
+    cout << "Control output " << ctrl_msg.linear.x << "; "<< ctrl_msg.angular.z << endl;
     status_check(check_linear,check_angular);
 }
-
 
 
 void getPose(const sensor_msgs::NavSatFix msg) {
@@ -176,14 +192,14 @@ void getPose(const sensor_msgs::NavSatFix msg) {
     double dx_goal = UTC2Map(lat2,lat_goal,0,0);
     double dy_goal = UTC2Map(0,0,lon2,lon_goal);
 
-    goal_pose_.w = atan2(dy_goal,dx_goal);
+    goal_pose_.z = atan2(dy_goal,dx_goal);
     
-    cout <<"Goal Pose = " << goal_pose_.x << "; "<< goal_pose_.y << "; " << goal_pose_.w <<endl;
+    cout <<"Goal Pose = " << goal_pose_.x << "; "<< goal_pose_.y << "; " << goal_pose_.z <<endl;
     
     robot_pose_.x = x;
     robot_pose_.y = y;
     robot_pose_.z = 0;
-    robot_pose_.w = angular;
+    robot_pose_.z = angular;
 
     gps_current_ = msg;
     cout <<"Current Pose = " << x << "; "<< y <<"; " << angular <<endl;
