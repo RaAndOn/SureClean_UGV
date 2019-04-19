@@ -113,8 +113,7 @@ void contrl_husky() {
             d_linear = DIS_RANGE;
         }
         ctrl_msg.linear.x  = Kp * MAX_SPEED * d_linear/DIS_RANGE - Kd * ctrl_vel_linear;
-        if (ctrl_msg.linear.x < MIN_SPEED){
-	        ctrl_msg.linear.x = MIN_SPEED;
+        if (ctrl_msg.linear.x < MIN_SPEED) ctrl_msg.linear.x = MIN_SPEED;
         check_linear = false;
     }
     else {
@@ -127,8 +126,7 @@ void contrl_husky() {
         if (fabs(d_angular) > M_PI/2) {
             d_angular = M_PI/2;
         }
-        if (ctrl_msg.angular.z < MIN_ANGULAR) {
-	        ctrl_msg.angular.z = MIN_ANGULAR;
+        if (ctrl_msg.angular.z < MIN_ANGULAR) ctrl_msg.angular.z = MIN_ANGULAR;
         // right handed
         ctrl_msg.angular.z =  (Kp * MAX_ANGULAR * d_angular / (M_PI/2) - Kd * ctrl_vel_angular);
         check_angular = false;
