@@ -159,7 +159,7 @@ sequence of numbers and letters.
 
 2) To rename the device's tty connection you must add a line to the `99-usb-serial.rules` file. The line should look like this:
 ```
-SUBSYSTEM=="tty", ATTRS{serial}=="00E59175", SYMLINK+="ttyIMU0"
+SUBSYSTEM=="tty", ATTRS{serial}=="FTGNUI4Q", SYMLINK+="ttyIMU0"
 ```
 As you can guess, replace the serial number in the middle with the serial number you got from the above grep command. You should replace "ttyIMU0" 
 whatever you wish to call your USB peripheral. It is good practice to have it begin with 'tty' and end with a number. As a side note, you are not 
