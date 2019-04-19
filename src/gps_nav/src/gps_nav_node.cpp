@@ -39,7 +39,7 @@ sensor_msgs::NavSatFix gps_current_;
 geometry_msgs::Point goal_pose_;
 geometry_msgs::Point robot_pose_;
 
-geometry_msgs::Twist robot_vel_;
+// geometry_msgs::Twist robot_vel_;
 
 queue<sensor_msgs::NavSatFix> goal_list_;
 
@@ -108,7 +108,7 @@ void contrl_husky() {
     bool check_angular;
     
     if (d_linear > linear_thred) {
-        double ctrl_vel_linear = robot_vel_.linear.x;
+        double ctrl_vel_linear = ctrl_msg.linear.x;
         if (d_linear > DIS_RANGE) {
             d_linear = DIS_RANGE;
         }
@@ -144,8 +144,8 @@ void contrl_husky() {
 void getPose(const sensor_msgs::NavSatFix msg) {
     // set origin
 
-    if (move_status_ == false && ori_index_ <= Aver_Time && ori_status_ == false) {
-        ori_gps_ = msg;
+    if (ori_index_ <= Aver_Time && ori_status_ == false) {
+        ori_gps_. = msg;
         ROS_INFO("Initializing Origin --- Robot NOT Moving");
         ROS_INFO("Yaw is not useful right now");
         //use for generate postion
@@ -192,7 +192,7 @@ void getPose(const sensor_msgs::NavSatFix msg) {
 
     goal_pose_.z = atan2(dy_goal,dx_goal);
     
-    cout <<"Goal Pose = " << goal_pose_.x << "; "<< goal_pose_.y << "; " << goal_pose_.z <<endl;
+    cout <<"Goal Pose = " << goal_pose_.x << "; "<< goal_pose_.y << "; " << goal_pose_.z * 180 / M_PI <<endl;
     
     robot_pose_.x = x;
     robot_pose_.y = y;
@@ -200,7 +200,7 @@ void getPose(const sensor_msgs::NavSatFix msg) {
     robot_pose_.z = angular;
 
     gps_current_ = msg;
-    cout <<"Current Pose = " << x << "; "<< y <<"; " << angular <<endl;
+    cout <<"Current Pose = " << x << "; "<< y <<"; " << angular * 180 / M_PI <<endl;
 
     ROS_INFO("------------------------------");
 
@@ -210,18 +210,16 @@ void getPose(const sensor_msgs::NavSatFix msg) {
     
 }
 
-void updateOdom(const nav_msgs::Odometry &msg) {
-    double vel_thred = THRED;
-    geometry_msgs::Twist vel = msg.twist.twist;
-    if (fabs(vel.linear.x) > vel_thred || fabs(vel.linear.y) > vel_thred) {
-        move_status_ = true;
-    }
-    else move_status_ = false;
-    robot_vel_ = vel;
-}
+// void updateOdom(const nav_msgs::Odometry &msg) {
+//     double vel_thred = THRED;
+//     geometry_msgs::Twist vel = msg.twist.twist;
+//     if (fabs(vel.linear.x) > vel_thred || fabs(vel.linear.y) > vel_thred) {
+//         move_status_ = true;
+//     }
+//     else move_status_ = false;
+//     robot_vel_ = vel;
+// }
 
-// gps_nav::GoalCollect::Request  &req,
-// gps_nav::GoalCollect::Response &res
 
 bool getGoal(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
     goal_list_.push(gps_current_);
@@ -266,10 +264,14 @@ int main(int argc, char** argv)
 {
     ros::init(argc, argv, "image_converter");
     ros::NodeHandle n;
+    /* initialization*/
+    ori_gps_.latitude = 0;
+    ori_gps_.longitude = 0;
+    /* initialization*/
     pub_cmd = n.advertise<geometry_msgs::Twist>("/cmd_vel",0);
     pub_status = n.advertise<std_msgs::Bool>("/goal_achieve_status",0);
-    sub_odom = n.subscribe("/husky_velocity_controller/odom",0,&updateOdom);
-    sub_gps = n.subscribe("/gps/filtered",0,&getPose);
+    // sub_odom = n.subscribe("/husky_velocity_controller/odom",0,&updateOdom);
+    sub_gps = n.subscribe("/gps/fix",0,&getPose);
     server_goal = n.advertiseService("/collect_goal",&getGoal);
     server_move = n.advertiseService("/move_next_goal",&NextGoalMove);
     server_stop = n.advertiseService("/emergency_stop",&emergency_stop);
