@@ -1,6 +1,8 @@
 
 #include <ros/ros.h>
 #include <iomanip>
+#include <tf/Quaternion.h>
+#include <tf/Matrix3x3.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Point.h>
 #include <nav_msgs/Odometry.h>
@@ -26,6 +28,7 @@ private:
     ros::Subscriber sub_odom;
     ros::Publisher pub_cmd;
     ros::Publisher pub_status;
+    ros::Publisher pub_mission_status;
     ros::ServiceServer server_goal;
     ros::ServiceServer server_move;
     ros::ServiceServer server_stop;
@@ -46,19 +49,27 @@ private:
 
     queue<sensor_msgs::NavSatFix> goal_list_;
 
-    int ori_index_ = 0;
-    bool status_ = false;
-    bool move_signal_ = false;
-    bool move_status_ = false;
-    bool ori_status_ = false;
+    int ori_index_; 
+    bool mission_status_
+    bool status_;
+    bool move_signal_;
+    bool move_status_;
+    bool ori_status_ ;
+    double d_yaw_odom_;
+    double lat_ori_accu;
+    double lon_ori_accu;
 
 public:
     Gps_nav() {
         ori_index_ = 0;
+        mission_status = false;
         status_ = false;
         move_signal_ = false;
         move_status_ = false;
         ori_status_ = false;
+        d_yaw_odom_ = 0
+        lat_ori_accu_ = 0;
+        lon_ori_accu_ = 0;
     }
     ~Gps_nav() {}
 
@@ -66,6 +77,7 @@ public:
         ros::NodeHandle n;
         pub_cmd = n.advertise<geometry_msgs::Twist>("/cmd_vel",0);
         pub_status = n.advertise<std_msgs::Bool>("/goal_achieve_status",0);
+        pub_mission_status = n.advertise<std_msgs::Bool>("/mission_status",0);
         sub_odom = n.subscribe("/husky_velocity_controller/odom",0,&Gps_nav::updateOdom,this);
         sub_gps = n.subscribe("/gps/fix",0,&Gps_nav::getPose,this);
         server_goal = n.advertiseService("/collect_goal",&Gps_nav::getGoal,this);
@@ -92,6 +104,19 @@ public:
         return d;
     }
 
+    double calculateYaw(geometry_msgs::Pose pose) {
+    // Calculate and return the yaw of a pose quaternion
+        double roll, pitch, yaw;
+        double quatx = pose.orientation.x;
+        double quaty = pose.orientation.y;
+        double quatz = pose.orientation.z;
+        double quatw = pose.orientation.w;
+        tf::Quaternion quaternion(quatx, quaty, quatz, quatw);
+        tf::Matrix3x3 rotMatrix(quaternion);
+        rotMatrix.getRPY(roll, pitch, yaw);
+        return yaw;
+    }
+
     void status_check(bool linear, bool angular) {
         std_msgs::Bool status_msgs;
         status_msgs.data = false;
@@ -104,14 +129,14 @@ public:
         pub_status.publish(status_msgs);
     }
 
-    float normalizeAngleDiff(float currAngle, float goalAngle)
+    float normalizeAngleDiff(float currAngle, float goalAngle) {
     // This function normalizes the difference between two angles to account for looping
-    {
         float diff = goalAngle - currAngle;
         if (diff > M_PI) return diff - 2 * M_PI;
         else if (diff < -M_PI) return diff + 2 * M_PI;
         else return diff;
     }
+
     void contrl_husky() {
         geometry_msgs::Twist ctrl_msg;
 
@@ -146,7 +171,7 @@ public:
             check_linear = true;
         }
 
-        if (fabs(d_angular) > angular_thred && check_linear == false) {
+        if (fabs(d_angular) > angular_thred) {
             double ctrl_vel_angular = ctrl_msg.angular.z;
             if (fabs(d_angular) > M_PI/2) {
                 d_angular = M_PI/2;
@@ -160,15 +185,21 @@ public:
             ctrl_msg.angular.z = 0;
             check_angular = true;
         }
+
+        if (fabs(d_angular) > M_PI_2) {
+            ctrl_msg.linear.x = 0;
+        }
+
         pub_cmd.publish(ctrl_msg);
         cout << "Control output " << ctrl_msg.linear.x << "; "<< ctrl_msg.angular.z << endl;
         status_check(check_linear,check_angular);
     }
+
     void getPose(const sensor_msgs::NavSatFix msg) {
         // set origin
-
-        if (ori_index_ <= Aver_Time && ori_status_ == false) {
-            ori_gps_ = msg;
+        if (move_status_ == false && ori_index_ <= Aver_Time && ori_status_ == false) {
+            lat_ori_accu_ += msg.latitude;
+            lon_ori_accu_ += msg.longitude;
             ROS_INFO("Initializing Origin --- Robot NOT Moving");
             ROS_INFO("Yaw is not useful right now");
             //use for generate postion
@@ -176,7 +207,9 @@ public:
         }
 
         if ((ori_index_ > Aver_Time || move_status_ == true) && ori_status_ == false) {
-
+            ori_gps_ = msg;
+            ori_gps_.latitude = lat_ori_accu_ / ori_index;
+            ori_gps_.latitude = lon_ori_accu_ / ori_index;
             cout << setprecision(10) <<"Ori_GPS = " <<ori_gps_.latitude<<"; "<<ori_gps_.longitude<<"; "<<endl;
             ROS_INFO("------------------Origin Initialization Completed-------------");
             ori_status_ = true;
@@ -220,27 +253,31 @@ public:
         robot_pose_.x = x;
         robot_pose_.y = y;
         robot_pose_.z = 0;
-        robot_pose_.z = angular;
-
+        if (move_status_ = true) {
+            robot_pose_.z = angular;
+        }
+        else robot_pose_.z += d_yaw_odom_;
+        
         gps_current_ = msg;
         cout <<"Current Pose = " << x << "; "<< y <<"; " << angular * 180 / M_PI <<endl;
 
         ROS_INFO("------------------------------");
+        pub_mission_status.publish(mission_status_);
 
         if (move_signal_) {
             contrl_husky();
         }
     }
     void updateOdom(const nav_msgs::Odometry &msg) {
-
-
         double vel_thred = THRED;
         geometry_msgs::Twist vel = msg.twist.twist;
         if (fabs(vel.linear.x) > vel_thred || fabs(vel.linear.y) > vel_thred) {
             move_status_ = true;
         }
         else move_status_ = false;
-        robot_vel_ = vel;
+        double yaw = calculateYaw(msg.pose.pose);
+        d_yaw_odom_ = yaw - calculateYaw(odom_current_);
+        odom_current_ = msg.pose.pose;
     }
     bool getGoal(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
         goal_list_.push(gps_current_);
@@ -250,7 +287,9 @@ public:
     bool NextGoalMove(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
         if (goal_list_.empty()) {
             move_signal_ = false;
+            mission_status_ = true;
             ROS_ERROR("No goal gps in the goal list");
+            pub_mission_status
             return false;
         }
         move_signal_ = true;
