@@ -42,7 +42,7 @@ private:
     geometry_msgs::Point goal_pose_;
     geometry_msgs::Point robot_pose_;
 
-    // geometry_msgs::Twist robot_vel_;
+    geometry_msgs::Twist robot_vel_;
 
     queue<sensor_msgs::NavSatFix> goal_list_;
 
@@ -54,19 +54,27 @@ private:
 
 public:
     Gps_nav() {
-        ros::init(argc, argv, "image_converter");
+        ori_index_ = 0;
+        status_ = false;
+        move_signal_ = false;
+        move_status_ = false;
+        ori_status_ = false;
+    }
+    ~Gps_nav() {}
+
+    void Loop() {
         ros::NodeHandle n;
         pub_cmd = n.advertise<geometry_msgs::Twist>("/cmd_vel",0);
         pub_status = n.advertise<std_msgs::Bool>("/goal_achieve_status",0);
         sub_odom = n.subscribe("/husky_velocity_controller/odom",0,&Gps_nav::updateOdom,this);
-        sub_gps = n.subscribe("/gps/fix",0,&getPose,this);
+        sub_gps = n.subscribe("/gps/fix",0,&Gps_nav::getPose,this);
         server_goal = n.advertiseService("/collect_goal",&Gps_nav::getGoal,this);
         server_move = n.advertiseService("/move_next_goal",&Gps_nav::NextGoalMove,this);
         server_stop = n.advertiseService("/emergency_stop",&Gps_nav::emergency_stop,this);
         server_go   = n.advertiseService("/continue_mission",&Gps_nav::continue_move,this);
         ros::spin();
     }
-    ~Gps_nav() {}
+
     double UTC2Map(double lat1, double lat2, double lon1, double lon2) {
         int sign = 1;
         if (lat2 >= lat1) sign = 1;  // heading north
@@ -276,7 +284,9 @@ public:
 
 int main(int argc, char** argv)
 {
-    Gps_nav gps_run();
+    ros::init(argc, argv, "image_converter");
+    Gps_nav gps_ctrl;
+    gps_ctrl.Loop();
 }
 
 
