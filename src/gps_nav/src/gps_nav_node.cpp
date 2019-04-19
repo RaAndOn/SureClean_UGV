@@ -12,15 +12,6 @@
 
 using namespace std;
 
-#define THRED 0.01
-#define RADIUS_EARTH 6378.137
-#define MAX_SPEED 1
-#define MIN_SPEED 0.3
-#define MAX_ANGULAR 0.5
-#define MIN_ANGULAR 0.1
-#define DIS_RANGE 10
-#define Aver_Time 50
-
 class Gps_nav {
 private:
     ros::Subscriber sub_gps;
@@ -33,19 +24,13 @@ private:
     ros::ServiceServer server_stop;
     ros::ServiceServer server_go;
 
-    ros::ServiceClient client_goal;
-
     sensor_msgs::NavSatFix goal_gps_;
     sensor_msgs::NavSatFix ori_gps_;
     sensor_msgs::NavSatFix gps_current_;
     nav_msgs::Odometry odom_current_;
-
     // Point x -- north, y -- west and z -- yaw
     geometry_msgs::Point goal_pose_;
     geometry_msgs::Point robot_pose_;
-
-    geometry_msgs::Twist robot_vel_;
-
     queue<sensor_msgs::NavSatFix> goal_list_;
 
     int ori_index_; 
@@ -57,6 +42,15 @@ private:
     double d_yaw_odom_;
     double lat_ori_accu_;
     double lon_ori_accu_;
+
+    float THRED = 0.01;
+    float RADIUS_EARTH = 6378.137;
+    float MAX_SPEED = 1;
+    float MIN_SPEED = 0.3;
+    float MAX_ANGULAR = 0.5;
+    float MIN_ANGULAR = 0.1;
+    float DIS_RANGE = 10;
+    int Aver_Time = 50;
 
 public:
     Gps_nav() {
@@ -77,8 +71,8 @@ public:
         pub_cmd = n.advertise<geometry_msgs::Twist>("/cmd_vel",0);
         pub_status = n.advertise<std_msgs::Bool>("/goal_achieve_status",0);
         pub_mission_status = n.advertise<std_msgs::Bool>("/mission_status",0);
-        sub_odom = n.subscribe("/husky_velocity_controller/odom",0,&Gps_nav::updateOdom,this);
-        sub_gps = n.subscribe("/gps/fix",0,&Gps_nav::getPose,this);
+        sub_odom = n.subscribe("/husky_velocity_controller/odom",0,&Gps_nav::updateOdomYaw,this);
+        sub_gps = n.subscribe("/gps/fix",0,&Gps_nav::GPS_CallBack_Main,this);
         server_goal = n.advertiseService("/collect_goal",&Gps_nav::getGoal,this);
         server_move = n.advertiseService("/move_next_goal",&Gps_nav::NextGoalMove,this);
         server_stop = n.advertiseService("/emergency_stop",&Gps_nav::emergency_stop,this);
@@ -175,9 +169,12 @@ public:
             if (fabs(d_angular) > M_PI/2) {
                 d_angular = M_PI/2;
             }
-            if (ctrl_msg.angular.z < MIN_ANGULAR) ctrl_msg.angular.z = MIN_ANGULAR;
             // right handed
             ctrl_msg.angular.z =  (Kp * MAX_ANGULAR * d_angular / (M_PI/2) - Kd * ctrl_vel_angular);
+            if (fabs(ctrl_msg.angular.z) < MIN_ANGULAR) {
+                float angular_sign = ctrl_msg.angular.z / fabs(ctrl_msg.angular.z);
+                ctrl_msg.angular.z = angular_sign * MIN_ANGULAR;
+            }
             check_angular = false;
         }
         else {
@@ -190,12 +187,14 @@ public:
         }
 
         pub_cmd.publish(ctrl_msg);
+
         cout << "Control output " << ctrl_msg.linear.x << "; "<< ctrl_msg.angular.z << endl;
         status_check(check_linear,check_angular);
     }
 
-    void getPose(const sensor_msgs::NavSatFix msg) {
+    void GPS_CallBack_Main(const sensor_msgs::NavSatFix msg) {
         // set origin
+        bool odom_yaw = false;
         if (move_status_ == false && ori_index_ <= Aver_Time && ori_status_ == false) {
             lat_ori_accu_ += msg.latitude;
             lon_ori_accu_ += msg.longitude;
@@ -208,7 +207,7 @@ public:
         if ((ori_index_ > Aver_Time || move_status_ == true) && ori_status_ == false) {
             ori_gps_ = msg;
             ori_gps_.latitude = lat_ori_accu_ / ori_index_;
-            ori_gps_.latitude = lon_ori_accu_ / ori_index_;
+            ori_gps_.longitude = lon_ori_accu_ / ori_index_;
             cout << setprecision(10) <<"Ori_GPS = " <<ori_gps_.latitude<<"; "<<ori_gps_.longitude<<"; "<<endl;
             ROS_INFO("------------------Origin Initialization Completed-------------");
             ori_status_ = true;
@@ -232,6 +231,7 @@ public:
         // define the x-axis point to the West ----- longitude
         double dy = UTC2Map(0,0,lon1,lon2);
         double angular = atan2(dy,dx);
+        if (dx < THRED && dy < THRED) odom_yaw = true;
 
         // get map position
         // cout << setprecision(10) << "Diff_GPS = "<<lat2-lat_ori<<"; "<<lon2-lon_ori<<endl;
@@ -251,14 +251,13 @@ public:
         
         robot_pose_.x = x;
         robot_pose_.y = y;
-        robot_pose_.z = 0;
-        if (move_status_ = true) {
+        if (! odom_yaw) {
             robot_pose_.z = angular;
         }
         else robot_pose_.z += d_yaw_odom_;
         
         gps_current_ = msg;
-        cout <<"Current Pose = " << x << "; "<< y <<"; " << angular * 180 / M_PI <<endl;
+        cout <<"Current Pose = " << x << "; "<< y <<"; " << robot_pose_.z * 180 / M_PI <<endl;
 
         ROS_INFO("------------------------------");
         std_msgs::Bool mission_msgs;
@@ -269,17 +268,13 @@ public:
             contrl_husky();
         }
     }
-    void updateOdom(const nav_msgs::Odometry msg) {
-        double vel_thred = THRED;
-        geometry_msgs::Twist vel = msg.twist.twist;
-        if (fabs(vel.linear.x) > vel_thred || fabs(vel.linear.y) > vel_thred) {
-            move_status_ = true;
-        }
-        else move_status_ = false;
+    
+    void updateOdomYaw(const nav_msgs::Odometry msg) {
         double yaw = calculateYaw(msg.pose.pose);
         d_yaw_odom_ = yaw - calculateYaw(odom_current_.pose.pose);
         odom_current_ = msg;
     }
+
     bool getGoal(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
         goal_list_.push(gps_current_);
         return true;
@@ -305,7 +300,6 @@ public:
         goal_pose_.x = UTC2Map(lat_ori,lat_goal,0,0);
         goal_pose_.y = UTC2Map(0,0,lon_ori,lon_goal);
 
-        move_signal_ = true;
         return true;
     }
 
