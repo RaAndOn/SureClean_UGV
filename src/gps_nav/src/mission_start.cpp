@@ -23,14 +23,15 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "mission_start");
 
     ros::NodeHandle n;
+    std_srvs::Empty srv;
     move_next = n.serviceClient<std_srvs::Empty>("/move_next_goal");
     sub_status = n.subscribe("/goal_achieve_status",0,&getStatus);    
     sub_mission_status = n.subscribe("/mission_status",0,&getMissionStatus);  
 
     while(! mission_status_) {
         if (achievement_status_) {
-            move_next.call()
-            ROS_INFO("-------------Moving to next goal-----------")
+            move_next.call(srv);
+            ROS_INFO("-------------Moving to next goal-----------");
         }
     }
     ros::spin();

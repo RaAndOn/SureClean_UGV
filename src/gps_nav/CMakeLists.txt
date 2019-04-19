@@ -154,6 +154,10 @@ add_executable(gps_nav_node src/gps_nav_node.cpp)
 add_dependencies(gps_nav_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(gps_nav_node ${catkin_LIBRARIES})
 
+add_executable(mission_start_node src/mission_start.cpp)
+add_dependencies(mission_start_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(mission_start_node ${catkin_LIBRARIES})
+
 #############
 ## Install ##
 #############

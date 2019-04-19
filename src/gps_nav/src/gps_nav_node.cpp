@@ -1,8 +1,7 @@
 
 #include <ros/ros.h>
 #include <iomanip>
-#include <tf/Quaternion.h>
-#include <tf/Matrix3x3.h>
+#include <tf/transform_listener.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Point.h>
 #include <nav_msgs/Odometry.h>
@@ -50,24 +49,24 @@ private:
     queue<sensor_msgs::NavSatFix> goal_list_;
 
     int ori_index_; 
-    bool mission_status_
+    bool mission_status_;
     bool status_;
     bool move_signal_;
     bool move_status_;
     bool ori_status_ ;
     double d_yaw_odom_;
-    double lat_ori_accu;
-    double lon_ori_accu;
+    double lat_ori_accu_;
+    double lon_ori_accu_;
 
 public:
     Gps_nav() {
         ori_index_ = 0;
-        mission_status = false;
+        mission_status_ = false;
         status_ = false;
         move_signal_ = false;
         move_status_ = false;
         ori_status_ = false;
-        d_yaw_odom_ = 0
+        d_yaw_odom_ = 0;
         lat_ori_accu_ = 0;
         lon_ori_accu_ = 0;
     }
@@ -208,8 +207,8 @@ public:
 
         if ((ori_index_ > Aver_Time || move_status_ == true) && ori_status_ == false) {
             ori_gps_ = msg;
-            ori_gps_.latitude = lat_ori_accu_ / ori_index;
-            ori_gps_.latitude = lon_ori_accu_ / ori_index;
+            ori_gps_.latitude = lat_ori_accu_ / ori_index_;
+            ori_gps_.latitude = lon_ori_accu_ / ori_index_;
             cout << setprecision(10) <<"Ori_GPS = " <<ori_gps_.latitude<<"; "<<ori_gps_.longitude<<"; "<<endl;
             ROS_INFO("------------------Origin Initialization Completed-------------");
             ori_status_ = true;
@@ -262,13 +261,15 @@ public:
         cout <<"Current Pose = " << x << "; "<< y <<"; " << angular * 180 / M_PI <<endl;
 
         ROS_INFO("------------------------------");
-        pub_mission_status.publish(mission_status_);
+        std_msgs::Bool mission_msgs;
+        mission_msgs.data = mission_status_;
+        pub_mission_status.publish(mission_msgs);
 
         if (move_signal_) {
             contrl_husky();
         }
     }
-    void updateOdom(const nav_msgs::Odometry &msg) {
+    void updateOdom(const nav_msgs::Odometry msg) {
         double vel_thred = THRED;
         geometry_msgs::Twist vel = msg.twist.twist;
         if (fabs(vel.linear.x) > vel_thred || fabs(vel.linear.y) > vel_thred) {
@@ -276,8 +277,8 @@ public:
         }
         else move_status_ = false;
         double yaw = calculateYaw(msg.pose.pose);
-        d_yaw_odom_ = yaw - calculateYaw(odom_current_);
-        odom_current_ = msg.pose.pose;
+        d_yaw_odom_ = yaw - calculateYaw(odom_current_.pose.pose);
+        odom_current_ = msg;
     }
     bool getGoal(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
         goal_list_.push(gps_current_);
@@ -289,7 +290,6 @@ public:
             move_signal_ = false;
             mission_status_ = true;
             ROS_ERROR("No goal gps in the goal list");
-            pub_mission_status
             return false;
         }
         move_signal_ = true;
