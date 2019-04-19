@@ -58,12 +58,12 @@ public:
         ros::NodeHandle n;
         pub_cmd = n.advertise<geometry_msgs::Twist>("/cmd_vel",0);
         pub_status = n.advertise<std_msgs::Bool>("/goal_achieve_status",0);
-        sub_odom = n.subscribe("/husky_velocity_controller/odom",0,&updateOdom,this);
+        sub_odom = n.subscribe("/husky_velocity_controller/odom",0,&Gps_nav::updateOdom,this);
         sub_gps = n.subscribe("/gps/fix",0,&getPose,this);
-        server_goal = n.advertiseService("/collect_goal",&getGoal,this);
-        server_move = n.advertiseService("/move_next_goal",&NextGoalMove,this);
-        server_stop = n.advertiseService("/emergency_stop",&emergency_stop,this);
-        server_go   = n.advertiseService("/continue_mission",&continue_move,this);
+        server_goal = n.advertiseService("/collect_goal",&Gps_nav::getGoal,this);
+        server_move = n.advertiseService("/move_next_goal",&Gps_nav::NextGoalMove,this);
+        server_stop = n.advertiseService("/emergency_stop",&Gps_nav::emergency_stop,this);
+        server_go   = n.advertiseService("/continue_mission",&Gps_nav::continue_move,this);
         ros::spin();
     }
     ~Gps_nav() {}
