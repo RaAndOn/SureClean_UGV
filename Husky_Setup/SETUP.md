@@ -154,7 +154,7 @@ contains the specific rules for the USB devices being used on the Project Surecl
 ```
 $ udevadm info -a -n /dev/ttyUSB0 | grep 'serial'
 ```
-You should get a return that looks something like `ATTRS{serial}=="00E59175"`. There may be more than one return, but you want the random 
+You should get a return that looks something like `ATTRS{serial}=="FTGNUI4Q"`. There may be more than one return, but you want the random 
 sequence of numbers and letters.
 
 2) To rename the device's tty connection you must add a line to the `99-usb-serial.rules` file. The line should look like this:
