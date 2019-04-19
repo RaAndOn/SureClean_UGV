@@ -145,7 +145,7 @@ void getPose(const sensor_msgs::NavSatFix msg) {
     // set origin
 
     if (ori_index_ <= Aver_Time && ori_status_ == false) {
-        ori_gps_. = msg;
+        ori_gps_ = msg;
         ROS_INFO("Initializing Origin --- Robot NOT Moving");
         ROS_INFO("Yaw is not useful right now");
         //use for generate postion
