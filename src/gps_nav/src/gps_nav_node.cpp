@@ -305,7 +305,7 @@ public:
         odom_current_ = msg;
     }
 
-    void updateOdomYaw(const sensor::Imu msg) {
+    void updateIMUYaw(const sensor_msgs::Imu msg) {
         // update the imu yaw
         imu_yaw_ = calculateYaw(msg.orientation);
     }
