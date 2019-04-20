@@ -7,6 +7,7 @@
 #include <nav_msgs/Odometry.h>
 #include <std_srvs/Empty.h>
 #include <std_msgs/Bool.h>
+#include <sensor_msgs/Imu.h>
 #include <queue> 
 #include <math.h>
 
@@ -16,6 +17,7 @@ class Gps_nav {
 private:
     ros::Subscriber sub_gps;
     ros::Subscriber sub_odom;
+    ros::Subscriber sub_imu;
     ros::Publisher pub_cmd;
     ros::Publisher pub_status;
     ros::Publisher pub_mission_status;
@@ -32,7 +34,8 @@ private:
     geometry_msgs::Point goal_pose_;
     geometry_msgs::Point robot_pose_;
     queue<sensor_msgs::NavSatFix> goal_list_;
-
+    
+    bool use_imu_;
     int ori_index_; 
     bool mission_status_;
     bool status_;
@@ -42,6 +45,7 @@ private:
     double d_yaw_odom_;
     double lat_ori_accu_;
     double lon_ori_accu_;
+    double imu_yaw_;
 
     float THRED;
     float RADIUS_EARTH;
@@ -54,6 +58,8 @@ private:
 
 public:
     Gps_nav() {
+
+        use_imu_ = false;
 
         THRED = 0.01;
         RADIUS_EARTH = 6378.137;
@@ -82,7 +88,9 @@ public:
         pub_status = n.advertise<std_msgs::Bool>("/goal_achieve_status",0);
         pub_mission_status = n.advertise<std_msgs::Bool>("/mission_status",0);
         sub_odom = n.subscribe("/husky_velocity_controller/odom",0,&Gps_nav::updateOdomYaw,this);
+        sub_imu = n.subscribe("/imu/data",0,&Gps_nav::updateIMUYaw,this);
         sub_gps = n.subscribe("/gps/fix",0,&Gps_nav::GPS_CallBack_Main,this);
+
         server_goal = n.advertiseService("/collect_goal",&Gps_nav::getGoal,this);
         server_move = n.advertiseService("/move_next_goal",&Gps_nav::NextGoalMove,this);
         server_stop = n.advertiseService("/emergency_stop",&Gps_nav::emergency_stop,this);
@@ -113,13 +121,13 @@ public:
         return d;
     }
 
-    double calculateYaw(geometry_msgs::Pose pose) {
+    double calculateYaw(geometry_msgs::Quaternion ori) {
     // Calculate and return the yaw of a pose quaternion
         double roll, pitch, yaw;
-        double quatx = pose.orientation.x;
-        double quaty = pose.orientation.y;
-        double quatz = pose.orientation.z;
-        double quatw = pose.orientation.w;
+        double quatx = ori.x;
+        double quaty = ori.y;
+        double quatz = ori.z;
+        double quatw = ori.w;
         tf::Quaternion quaternion(quatx, quaty, quatz, quatw);
         tf::Matrix3x3 rotMatrix(quaternion);
         rotMatrix.getRPY(roll, pitch, yaw);
@@ -269,10 +277,14 @@ public:
         
         robot_pose_.x = x;
         robot_pose_.y = y;
-        if (! odom_yaw) {
-            robot_pose_.z = angular;
+
+        if (! use_imu_) { // check whether or not using IMU yaw
+            if (! odom_yaw) {
+                robot_pose_.z = angular;
+            }
+            else robot_pose_.z += d_yaw_odom_;
         }
-        else robot_pose_.z += d_yaw_odom_;
+        else robot_pose_.z = imu_yaw_;
         
         gps_current_ = msg;
         cout <<"Current Pose = " << x << "; "<< y <<"; " << robot_pose_.z * 180 / M_PI <<endl;
@@ -288,10 +300,17 @@ public:
     }
     
     void updateOdomYaw(const nav_msgs::Odometry msg) {
-        double yaw = calculateYaw(msg.pose.pose);
-        d_yaw_odom_ = yaw - calculateYaw(odom_current_.pose.pose);
+        double yaw = calculateYaw(msg.pose.pose.orientation);
+        d_yaw_odom_ = yaw - calculateYaw(odom_current_.pose.pose.orientation);
         odom_current_ = msg;
     }
+
+    void updateOdomYaw(const sensor::Imu msg) {
+        // update the imu yaw
+        imu_yaw_ = calculateYaw(msg.orientation);
+    }
+
+    
 
     bool getGoal(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
         goal_list_.push(gps_current_);
