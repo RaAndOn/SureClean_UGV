@@ -37,7 +37,7 @@ private:
     
     bool use_imu_;
     double magnetic_declination_;
-    double yaw_offset;
+    double yaw_offset_;
     int ori_index_; 
     bool mission_status_;
     bool status_;
