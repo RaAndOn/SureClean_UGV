@@ -43,17 +43,27 @@ private:
     double lat_ori_accu_;
     double lon_ori_accu_;
 
-    float THRED = 0.01;
-    float RADIUS_EARTH = 6378.137;
-    float MAX_SPEED = 1;
-    float MIN_SPEED = 0.3;
-    float MAX_ANGULAR = 0.5;
-    float MIN_ANGULAR = 0.1;
-    float DIS_RANGE = 10;
-    int Aver_Time = 50;
+    float THRED;
+    float RADIUS_EARTH;
+    float MAX_SPEED;
+    float MIN_SPEED;
+    float MAX_ANGULAR;
+    float MIN_ANGULAR;
+    float DIS_RANGE;
+    int   Aver_Time;
 
 public:
     Gps_nav() {
+
+        THRED = 0.01;
+        RADIUS_EARTH = 6378.137;
+        MAX_SPEED = 1;
+        MIN_SPEED = 0.3;
+        MAX_ANGULAR = 0.5;
+        MIN_ANGULAR = 0.1;
+        DIS_RANGE = 10;
+        Aver_Time = 50;
+
         ori_index_ = 0;
         mission_status_ = false;
         status_ = false;
@@ -82,10 +92,16 @@ public:
 
     double UTC2Map(double lat1, double lat2, double lon1, double lon2) {
         int sign = 1;
-        if (lat2 >= lat1) sign = 1;  // heading north
-        else sign = -1;
-        if (lon2 <= lon1) sign = 1;  // heading west
-        else sign = -1;
+
+        if (lon1 == 0 && lon2 == 0) {
+            if (lat2 >= lat1) sign = 1;  // heading north
+            else sign = -1;
+        }
+        if (lat1 == 0 && lat2 == 0) {
+            if (lon2 <= lon1) sign = 1;  // heading west
+            else sign = -1;
+        }
+        
         double R = RADIUS_EARTH;
         double dLat = lat2 * M_PI / 180 - lat1 * M_PI / 180;
         double dLon = lon2 * M_PI / 180 - lon1 * M_PI / 180;
@@ -155,7 +171,7 @@ public:
             if (d_linear > DIS_RANGE) {
                 d_linear = DIS_RANGE;
             }
-            ctrl_msg.linear.x  = Kp * MAX_SPEED * d_linear/DIS_RANGE - Kd * ctrl_vel_linear;
+            ctrl_msg.linear.x  = Kp * MAX_SPEED * d_linear/DIS_RANGE;
             if (ctrl_msg.linear.x < MIN_SPEED) ctrl_msg.linear.x = MIN_SPEED;
             check_linear = false;
         }
@@ -170,11 +186,13 @@ public:
                 d_angular = M_PI/2;
             }
             // right handed
-            ctrl_msg.angular.z =  (Kp * MAX_ANGULAR * d_angular / (M_PI/2) - Kd * ctrl_vel_angular);
+            ctrl_msg.angular.z =  (Kp * MAX_ANGULAR * d_angular / (M_PI/2));
+            
             if (fabs(ctrl_msg.angular.z) < MIN_ANGULAR) {
                 float angular_sign = ctrl_msg.angular.z / fabs(ctrl_msg.angular.z);
                 ctrl_msg.angular.z = angular_sign * MIN_ANGULAR;
             }
+
             check_angular = false;
         }
         else {
