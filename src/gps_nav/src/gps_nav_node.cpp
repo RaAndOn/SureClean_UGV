@@ -36,6 +36,8 @@ private:
     queue<sensor_msgs::NavSatFix> goal_list_;
     
     bool use_imu_;
+    double magnetic_declination_;
+    double yaw_offset;
     int ori_index_; 
     bool mission_status_;
     bool status_;
@@ -79,6 +81,9 @@ public:
         d_yaw_odom_ = 0;
         lat_ori_accu_ = 0;
         lon_ori_accu_ = 0;
+
+        magnetic_declination_ = -0.16347917327;
+        yaw_offset_ = 0;
     }
     ~Gps_nav() {}
 
@@ -88,7 +93,7 @@ public:
         pub_status = n.advertise<std_msgs::Bool>("/goal_achieve_status",0);
         pub_mission_status = n.advertise<std_msgs::Bool>("/mission_status",0);
         sub_odom = n.subscribe("/husky_velocity_controller/odom",0,&Gps_nav::updateOdomYaw,this);
-        sub_imu = n.subscribe("/imu/data",0,&Gps_nav::updateIMUYaw,this);
+        sub_imu = n.subscribe("/imu/data_raw",0,&Gps_nav::updateIMUYaw,this);
         sub_gps = n.subscribe("/gps/fix",0,&Gps_nav::GPS_CallBack_Main,this);
 
         server_goal = n.advertiseService("/collect_goal",&Gps_nav::getGoal,this);
@@ -307,7 +312,7 @@ public:
 
     void updateIMUYaw(const sensor_msgs::Imu msg) {
         // update the imu yaw
-        imu_yaw_ = calculateYaw(msg.orientation);
+        imu_yaw_ = calculateYaw(msg.orientation) + magnetic_declination_ + yaw_offset_;
     }
 
     

@@ -167,7 +167,7 @@ namespace RobotLocalization
 
     if (!use_odometry_yaw_ && !use_manual_datum_)
     {
-      imu_sub = nh.subscribe("imu_base/data", 1, &NavSatTransform::imuCallback, this);
+      imu_sub = nh.subscribe("imu/data_raw", 1, &NavSatTransform::imuCallback, this);
     }
 
     ros::Publisher gps_odom_pub = nh.advertise<nav_msgs::Odometry>("odometry/gps", 10);
