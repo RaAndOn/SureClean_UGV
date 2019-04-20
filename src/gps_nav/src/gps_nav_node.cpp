@@ -106,7 +106,7 @@ public:
             else sign = -1;
         }
         if (lat1 == 0 && lat2 == 0) {
-            if (lon2 <= lon1) sign = 1;  // heading west
+            if (lon2 >= lon1) sign = 1;  // heading west
             else sign = -1;
         }
         
@@ -253,23 +253,23 @@ public:
         cout << setprecision(10) << "Ori_GPS_ = "<<lat_ori<<"; "<<lon_ori<<endl;
 
         // define the x-axis point to the North ----- latitude
-        double dx = UTC2Map(lat1,lat2,0,0);
+        double dy = UTC2Map(lat1,lat2,0,0);
         // define the x-axis point to the West ----- longitude
-        double dy = UTC2Map(0,0,lon1,lon2);
+        double dx = UTC2Map(0,0,lon1,lon2);
         double angular = atan2(dy,dx);
         if (dx < THRED && dy < THRED) odom_yaw = true;
 
         // get map position
         // cout << setprecision(10) << "Diff_GPS = "<<lat2-lat_ori<<"; "<<lon2-lon_ori<<endl;
-        double x = UTC2Map(lat_ori,lat2,0,0);
-        double y = UTC2Map(0,0,lon_ori,lon2);
+        double y = UTC2Map(lat_ori,lat2,0,0);
+        double x = UTC2Map(0,0,lon_ori,lon2);
 
         //update the goal oritation
         double lat_goal = goal_gps_.latitude;
         double lon_goal = goal_gps_.longitude;
 
-        double dx_goal = UTC2Map(lat2,lat_goal,0,0);
-        double dy_goal = UTC2Map(0,0,lon2,lon_goal);
+        double dy_goal = UTC2Map(lat2,lat_goal,0,0);
+        double dx_goal = UTC2Map(0,0,lon2,lon_goal);
 
         goal_pose_.z = atan2(dy_goal,dx_goal);
         
@@ -334,8 +334,8 @@ public:
         double lat_ori  = ori_gps_.latitude;
         double lon_ori  = ori_gps_.longitude;
 
-        goal_pose_.x = UTC2Map(lat_ori,lat_goal,0,0);
-        goal_pose_.y = UTC2Map(0,0,lon_ori,lon_goal);
+        goal_pose_.y = UTC2Map(lat_ori,lat_goal,0,0);
+        goal_pose_.x = UTC2Map(0,0,lon_ori,lon_goal);
 
         return true;
     }
