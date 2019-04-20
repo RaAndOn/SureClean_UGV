@@ -262,8 +262,9 @@ public:
         // define the x-axis point to the West ----- longitude
         double dx = UTC2Map(0,0,lon1,lon2);
         double angular = atan2(dy,dx);
-        if (dx < THRED && dy < THRED) odom_yaw = true;
-
+        if (fabs(dx) < THRED && fabs(dy) < THRED) odom_yaw = true;
+        cout << "The output of dx and dy: " << dx <<"; "<< dy << endl;
+        cout << "Current Orientation: " << angular * 180 / M_PI << endl;
         // get map position
         // cout << setprecision(10) << "Diff_GPS = "<<lat2-lat_ori<<"; "<<lon2-lon_ori<<endl;
         double y = UTC2Map(lat_ori,lat2,0,0);
