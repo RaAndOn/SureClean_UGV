@@ -94,7 +94,7 @@ public:
         pub_mission_status = n.advertise<std_msgs::Bool>("/mission_status",0);
         sub_odom = n.subscribe("/husky_velocity_controller/odom",0,&Gps_nav::updateOdomYaw,this);
         sub_imu = n.subscribe("/imu/data_raw",0,&Gps_nav::updateIMUYaw,this);
-        sub_gps = n.subscribe("/gps/fix",0,&Gps_nav::GPS_CallBack_Main,this);
+        sub_gps = n.subscribe("/gps/filtered",0,&Gps_nav::GPS_CallBack_Main,this);
 
         server_goal = n.advertiseService("/collect_goal",&Gps_nav::getGoal,this);
         server_move = n.advertiseService("/move_next_goal",&Gps_nav::NextGoalMove,this);
