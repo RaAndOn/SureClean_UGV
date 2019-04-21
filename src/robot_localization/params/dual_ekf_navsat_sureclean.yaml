@@ -25,7 +25,7 @@ ekf_se_odom:
   odom0_differential: false
   odom0_relative: false
 
-  imu0: imu/data
+  imu0: imu/data_raw
   imu0_config: [false, false, false,
                 true,  true,  false,
                 false, false, false,
@@ -83,9 +83,9 @@ ekf_se_map:
   map_frame: map
   odom_frame: odom
   base_link_frame: base_link
-  world_frame: map
+  world_frame: odom
 
-  odom0: odometry/wheel
+  odom0: husky_velocity_controller/odom
   odom0_config: [false, false, false,
                  false, false, false,
                  true,  true,  true,
@@ -107,7 +107,7 @@ ekf_se_map:
   odom1_differential: false
   odom1_relative: false
 
-  imu0: imu/data
+  imu0: imu/data_raw
   imu0_config: [false, false, false,
                 true,  true,  false,
                 false, false, false,

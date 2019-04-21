@@ -16,6 +16,7 @@ using namespace std;
 class Gps_nav {
 private:
     ros::Subscriber sub_gps;
+    ros::Subscriber sub_odom_filtered;
     ros::Subscriber sub_odom;
     ros::Subscriber sub_imu;
     ros::Publisher pub_cmd;
@@ -27,13 +28,16 @@ private:
     ros::ServiceServer server_go;
 
     sensor_msgs::NavSatFix goal_gps_;
+    nav_msgs::Odometry odom_filtered_goal_;
     sensor_msgs::NavSatFix ori_gps_;
+    nav_msgs::Odometry odom_filtered_ori_;
     sensor_msgs::NavSatFix gps_current_;
+    nav_msgs::Odometry odom_filtered_current_;
     nav_msgs::Odometry odom_current_;
     // Point x -- north, y -- west and z -- yaw
     geometry_msgs::Point goal_pose_;
     geometry_msgs::Point robot_pose_;
-    queue<sensor_msgs::NavSatFix> goal_list_;
+    queue<nav_msgs::Odometry> goal_list_;
     
     bool use_imu_;
     double magnetic_declination_;
@@ -68,14 +72,14 @@ public:
         use_imu_ = false;
 
         THRED_MOVEMENT = 0.01;
-        ANGULAR_THRED = 0.05;
-        LINEAR_THRED = 0.15;
+        ANGULAR_THRED = 0.04;
+        LINEAR_THRED = 0.1;
         RADIUS_EARTH = 6378.137;
         MAX_SPEED = 1;
-        MIN_SPEED = 0.5;
+        MIN_SPEED = 0.4;
         MAX_ANGULAR = 0.5;
-        MIN_ANGULAR = 0.1;
-        DIS_RANGE = 1.6;
+        MIN_ANGULAR = 0.15;
+        DIS_RANGE = 1;
         Aver_Time = 50;
 
         Kp_ = 1;
@@ -102,8 +106,8 @@ public:
         pub_mission_status = n.advertise<std_msgs::Bool>("/mission_status",0);
         sub_odom = n.subscribe("/husky_velocity_controller/odom",0,&Gps_nav::updateOdomYaw,this);
         sub_imu = n.subscribe("/imu/data_raw",0,&Gps_nav::updateIMUYaw,this);
-        sub_gps = n.subscribe("/gps/filtered",0,&Gps_nav::GPS_CallBack_Main,this);
-
+        sub_gps = n.subscribe("/odometry/filtered_gps",0,&Gps_nav::GPS_CallBack_Main,this);
+	//sub_odom_filtered = n.subscribe("/odometry/filtered_gps",0,&Gps_nav::ODOM_CALLBack_Main);
         server_goal = n.advertiseService("/collect_goal",&Gps_nav::getGoal,this);
         server_move = n.advertiseService("/move_next_goal",&Gps_nav::NextGoalMove,this);
         server_stop = n.advertiseService("/emergency_stop",&Gps_nav::emergency_stop,this);
@@ -196,7 +200,7 @@ public:
             check_linear = true;
         }
 
-        if (fabs(d_angular) > ANGULAR_THRED && (!check_angular || fabs(d_linear) >= DIS_RANGE)) {
+        if (fabs(d_angular) > ANGULAR_THRED && fabs(d_linear) >= DIS_RANGE) {
             double ctrl_vel_angular = ctrl_msg.angular.z;
             if (fabs(d_angular) > M_PI/2) {
                 d_angular = M_PI/2;
@@ -214,9 +218,10 @@ public:
         else {
             ctrl_msg.angular.z = 0;
             check_angular = true;
+	    ROS_INFO("Angular_Achieve------");
         }
 
-        if (fabs(d_angular) > M_PI_2) {
+        if (fabs(d_angular) > M_PI / 6) {
             ctrl_msg.linear.x = 0;
         }
 
@@ -225,13 +230,14 @@ public:
         cout << "Control output " << ctrl_msg.linear.x << "; "<< ctrl_msg.angular.z << endl;
         status_check(check_linear,check_angular);
     }
+   
 
-    void GPS_CallBack_Main(const sensor_msgs::NavSatFix msg) {
+    void GPS_CallBack_Main(const nav_msgs::Odometry msg) {
         // set origin
         bool odom_yaw = false;
         if (move_status_ == false && ori_index_ <= Aver_Time && ori_status_ == false) {
-            lat_ori_accu_ += msg.latitude;
-            lon_ori_accu_ += msg.longitude;
+            //lat_ori_accu_ += msg.latitude;
+            //lon_ori_accu_ += msg.longitude;
             ROS_INFO("Initializing Origin --- Robot NOT Moving");
             ROS_INFO("Yaw is not useful right now");
             //use for generate postion
@@ -239,63 +245,64 @@ public:
         }
 
         if ((ori_index_ > Aver_Time || move_status_ == true) && ori_status_ == false) {
-            ori_gps_ = msg;
-            ori_gps_.latitude = lat_ori_accu_ / ori_index_;
-            ori_gps_.longitude = lon_ori_accu_ / ori_index_;
-            cout << setprecision(10) <<"Ori_GPS = " <<ori_gps_.latitude<<"; "<<ori_gps_.longitude<<"; "<<endl;
+            odom_filtered_ori_ = msg;
+            //ori_gps_.latitude = lat_ori_accu_ / ori_index_;
+            //ori_gps_.longitude = lon_ori_accu_ / ori_index_;
+            cout << setprecision(10) <<"Ori_GPS = " <<odom_filtered_ori_.pose.pose.position.x<<"; "<<odom_filtered_ori_.pose.pose.position.y<<"; "<<endl;
             ROS_INFO("------------------Origin Initialization Completed-------------");
             ori_status_ = true;
         }
 
-        double lat_ori = ori_gps_.latitude;
-        double lon_ori = ori_gps_.longitude;
+        //double lat_ori = ori_gps_.latitude;
+        //double lon_ori = ori_gps_.longitude;
 
         // use for yaw generation
-        double lat1 = gps_current_.latitude;
-        double lon1 = gps_current_.longitude;
+        //double lat1 = gps_current_.latitude;
+        //double lon1 = gps_current_.longitude;
 
         // the new gps signal
-        double lat2 = msg.latitude;
-        double lon2 = msg.longitude;
-        cout << setprecision(10) << "GPS_ = "<<lat2<<"; "<<lon2<<endl;
-        cout << setprecision(10) << "Ori_GPS_ = "<<lat_ori<<"; "<<lon_ori<<endl;
+        //double lat2 = msg.latitude;
+        //double lon2 = msg.longitude;
+        //cout << setprecision(10) << "Position_current = "<<msg.pose.pose.position.x<<"; "<< msg.pose.pose.position.y<<endl;
+        cout << setprecision(10) << "Ori_Position_ = "<<odom_filtered_ori_.pose.pose.position.x<<"; "<<odom_filtered_ori_.pose.pose.position.y<<endl;
 
         // define the x-axis point to the North ----- latitude
-        double dy = UTC2Map(lat1,lat2,0,0);
+        //double dy = UTC2Map(lat1,lat2,0,0);
         // define the x-axis point to the West ----- longitude
-        double dx = UTC2Map(0,0,lon1,lon2);
-        double angular = atan2(dy,dx);
-        if (fabs(dx) < THRED_MOVEMENT && fabs(dy) < THRED_MOVEMENT) odom_yaw = true;
-        cout << "The output of dx and dy: " << dx <<"; "<< dy << endl;
+        //double dx = UTC2Map(0,0,lon1,lon2);
+        double angular = calculateYaw(msg.pose.pose.orientation);
+        //if (fabs(dx) < THRED_MOVEMENT && fabs(dy) < THRED_MOVEMENT) odom_yaw = true;
+        //cout << "The output of dx and dy: " << dx <<"; "<< dy << endl;
         cout << "Current Orientation: " << angular * 180 / M_PI << endl;
         // get map position
         // cout << setprecision(10) << "Diff_GPS = "<<lat2-lat_ori<<"; "<<lon2-lon_ori<<endl;
-        double y = UTC2Map(lat_ori,lat2,0,0);
-        double x = UTC2Map(0,0,lon_ori,lon2);
+        double y = msg.pose.pose.position.y;
+        double x = msg.pose.pose.position.x;
 
         //update the goal oritation
-        double lat_goal = goal_gps_.latitude;
-        double lon_goal = goal_gps_.longitude;
+        //double lat_goal = goal_gps_.latitude;
+        //double lon_goal = goal_gps_.longitude;
 
-        double dy_goal = UTC2Map(lat2,lat_goal,0,0);
-        double dx_goal = UTC2Map(0,0,lon2,lon_goal);
+        double dy_goal = odom_filtered_goal_.pose.pose.position.y - msg.pose.pose.position.y;
+        double dx_goal = odom_filtered_goal_.pose.pose.position.x - msg.pose.pose.position.x;
 
         goal_pose_.z = atan2(dy_goal,dx_goal);
         
-        cout <<"Goal Pose = " << goal_pose_.x << "; "<< goal_pose_.y << "; " << goal_pose_.z * 180 / M_PI <<endl;
+        cout <<"Goal Pose = " <<goal_pose_.x<< "; "<< goal_pose_.y << "; " << goal_pose_.z * 180 / M_PI <<endl;
         
         robot_pose_.x = x;
         robot_pose_.y = y;
+	robot_pose_.z = angular;
 
-        if (! use_imu_) { // check whether or not using IMU yaw
-            if (! odom_yaw) {
-                robot_pose_.z = angular;
-            }
-            else robot_pose_.z += d_yaw_odom_;
-        }
-        else robot_pose_.z = imu_yaw_;
+        //if (! use_imu_) { // check whether or not using IMU yaw
+        //    if (! odom_yaw) {
+        //        robot_pose_.z = angular;
+        //    }
+        //    else robot_pose_.z += d_yaw_odom_;
+        //}
+        //else robot_pose_.z = imu_yaw_;
         
-        gps_current_ = msg;
+        odom_filtered_current_ = msg;
         cout <<"Current Pose = " << x << "; "<< y <<"; " << robot_pose_.z * 180 / M_PI <<endl;
 
         ROS_INFO("------------------------------");
@@ -322,7 +329,7 @@ public:
     
 
     bool getGoal(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
-        goal_list_.push(gps_current_);
+        goal_list_.push(odom_filtered_current_);
         return true;
     }
 
@@ -334,17 +341,17 @@ public:
             return false;
         }
         move_signal_ = true;
-        goal_gps_ = goal_list_.front();
+        odom_filtered_goal_ = goal_list_.front();
         goal_list_.pop();
         ROS_INFO("----------Go to the next goal--------");
         // get x and y for goal_pose_
-        double lat_goal = goal_gps_.latitude;
-        double lon_goal = goal_gps_.longitude;
-        double lat_ori  = ori_gps_.latitude;
-        double lon_ori  = ori_gps_.longitude;
+        //double lat_goal = goal_gps_.latitude;
+        //double lon_goal = goal_gps_.longitude;
+        //double lat_ori  = ori_gps_.latitude;
+       // double lon_ori  = ori_gps_.longitude;
 
-        goal_pose_.y = UTC2Map(lat_ori,lat_goal,0,0);
-        goal_pose_.x = UTC2Map(0,0,lon_ori,lon_goal);
+        goal_pose_.y = odom_filtered_goal_.pose.pose.position.y;
+        goal_pose_.x = odom_filtered_goal_.pose.pose.position.x;
 
         return true;
     }
