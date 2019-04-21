@@ -48,8 +48,12 @@ private:
     double lat_ori_accu_;
     double lon_ori_accu_;
     double imu_yaw_;
+    float Kp_;
+    float Kd_;
 
-    float THRED;
+    float THRED_MOVEMENT;
+    float ANGULAR_THRED; 
+    float LINEAR_THRED; 
     float RADIUS_EARTH;
     float MAX_SPEED;
     float MIN_SPEED;
@@ -63,15 +67,19 @@ public:
 
         use_imu_ = false;
 
-        THRED = 0.01;
+        THRED_MOVEMENT = 0.01;
+        ANGULAR_THRED = 0.05;
+        LINEAR_THRED = 0.15;
         RADIUS_EARTH = 6378.137;
         MAX_SPEED = 1;
-        MIN_SPEED = 0.3;
+        MIN_SPEED = 0.5;
         MAX_ANGULAR = 0.5;
         MIN_ANGULAR = 0.1;
-        DIS_RANGE = 10;
+        DIS_RANGE = 1.6;
         Aver_Time = 50;
 
+        Kp_ = 1;
+        Kd_ = 0.05;
         ori_index_ = 0;
         mission_status_ = false;
         status_ = false;
@@ -104,7 +112,7 @@ public:
     }
 
     double UTC2Map(double lat1, double lat2, double lon1, double lon2) {
-        int sign = 1;
+        double sign = 1;
 
         if (lon1 == 0 && lon2 == 0) {
             if (lat2 >= lat1) sign = 1;  // heading north
@@ -161,12 +169,7 @@ public:
 
     void contrl_husky() {
         geometry_msgs::Twist ctrl_msg;
-
-        float angular_thred = 0.05;
-        float linear_thred = 0.1;
         // PD control of husky
-        float Kp = 1;
-        float Kd = 0.05;
 
         float goal_angular = goal_pose_.z;
         float current_angular = robot_pose_.z;
@@ -179,12 +182,12 @@ public:
         bool check_linear;
         bool check_angular;
         
-        if (d_linear > linear_thred) {
+        if (d_linear > LINEAR_THRED) {
             double ctrl_vel_linear = ctrl_msg.linear.x;
             if (d_linear > DIS_RANGE) {
                 d_linear = DIS_RANGE;
             }
-            ctrl_msg.linear.x  = Kp * MAX_SPEED * d_linear/DIS_RANGE;
+            ctrl_msg.linear.x  = Kp_ * MAX_SPEED * d_linear/DIS_RANGE;
             if (ctrl_msg.linear.x < MIN_SPEED) ctrl_msg.linear.x = MIN_SPEED;
             check_linear = false;
         }
@@ -193,13 +196,13 @@ public:
             check_linear = true;
         }
 
-        if (fabs(d_angular) > angular_thred) {
+        if (fabs(d_angular) > ANGULAR_THRED && (!check_angular || fabs(d_linear) >= DIS_RANGE)) {
             double ctrl_vel_angular = ctrl_msg.angular.z;
             if (fabs(d_angular) > M_PI/2) {
                 d_angular = M_PI/2;
             }
             // right handed
-            ctrl_msg.angular.z =  (Kp * MAX_ANGULAR * d_angular / (M_PI/2));
+            ctrl_msg.angular.z =  (Kp_ * MAX_ANGULAR * d_angular / (M_PI/2));
             
             if (fabs(ctrl_msg.angular.z) < MIN_ANGULAR) {
                 float angular_sign = ctrl_msg.angular.z / fabs(ctrl_msg.angular.z);
@@ -262,7 +265,7 @@ public:
         // define the x-axis point to the West ----- longitude
         double dx = UTC2Map(0,0,lon1,lon2);
         double angular = atan2(dy,dx);
-        if (fabs(dx) < THRED && fabs(dy) < THRED) odom_yaw = true;
+        if (fabs(dx) < THRED_MOVEMENT && fabs(dy) < THRED_MOVEMENT) odom_yaw = true;
         cout << "The output of dx and dy: " << dx <<"; "<< dy << endl;
         cout << "Current Orientation: " << angular * 180 / M_PI << endl;
         // get map position
