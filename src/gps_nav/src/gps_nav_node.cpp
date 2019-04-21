@@ -135,7 +135,7 @@ public:
     }
 
     double calculateYaw(geometry_msgs::Quaternion ori) {
-    // Calculate and return the yaw of a pose quaternion
+        // Calculate and return the yaw of a pose quaternion
         double roll, pitch, yaw;
         double quatx = ori.x;
         double quaty = ori.y;
@@ -160,7 +160,7 @@ public:
     }
 
     float normalizeAngleDiff(float currAngle, float goalAngle) {
-    // This function normalizes the difference between two angles to account for looping
+        // This function normalizes the difference between two angles to account for looping
         float diff = goalAngle - currAngle;
         if (diff > M_PI) return diff - 2 * M_PI;
         else if (diff < -M_PI) return diff + 2 * M_PI;
@@ -232,8 +232,6 @@ public:
         // set origin
         bool odom_yaw = false;
         if (move_status_ == false && ori_index_ <= Aver_Time && ori_status_ == false) {
-            //lat_ori_accu_ += msg.latitude;
-            //lon_ori_accu_ += msg.longitude;
             ROS_INFO("Initializing Origin --- Robot NOT Moving");
             ROS_INFO("Yaw is not useful right now");
             //use for generate postion
@@ -242,42 +240,19 @@ public:
 
         if ((ori_index_ > Aver_Time || move_status_ == true) && ori_status_ == false) {
             odom_filtered_ori_ = msg;
-            //ori_gps_.latitude = lat_ori_accu_ / ori_index_;
-            //ori_gps_.longitude = lon_ori_accu_ / ori_index_;
             cout << setprecision(10) <<"Ori_GPS = " <<odom_filtered_ori_.pose.pose.position.x<<"; "<<odom_filtered_ori_.pose.pose.position.y<<"; "<<endl;
             ROS_INFO("------------------Origin Initialization Completed-------------");
             ori_status_ = true;
         }
 
-        //double lat_ori = ori_gps_.latitude;
-        //double lon_ori = ori_gps_.longitude;
-
-        // use for yaw generation
-        //double lat1 = gps_current_.latitude;
-        //double lon1 = gps_current_.longitude;
-
-        // the new gps signal
-        //double lat2 = msg.latitude;
-        //double lon2 = msg.longitude;
-        //cout << setprecision(10) << "Position_current = "<<msg.pose.pose.position.x<<"; "<< msg.pose.pose.position.y<<endl;
         cout << setprecision(10) << "Ori_Position_ = "<<odom_filtered_ori_.pose.pose.position.x<<"; "<<odom_filtered_ori_.pose.pose.position.y<<endl;
 
-        // define the x-axis point to the North ----- latitude
-        //double dy = UTC2Map(lat1,lat2,0,0);
-        // define the x-axis point to the West ----- longitude
-        //double dx = UTC2Map(0,0,lon1,lon2);
         double angular = calculateYaw(msg.pose.pose.orientation);
-        //if (fabs(dx) < THRED_MOVEMENT && fabs(dy) < THRED_MOVEMENT) odom_yaw = true;
-        //cout << "The output of dx and dy: " << dx <<"; "<< dy << endl;
+
         cout << "Current Orientation: " << angular * 180 / M_PI << endl;
-        // get map position
-        // cout << setprecision(10) << "Diff_GPS = "<<lat2-lat_ori<<"; "<<lon2-lon_ori<<endl;
+
         double y = msg.pose.pose.position.y;
         double x = msg.pose.pose.position.x;
-
-        //update the goal oritation
-        //double lat_goal = goal_gps_.latitude;
-        //double lon_goal = goal_gps_.longitude;
 
         double dy_goal = odom_filtered_goal_.pose.pose.position.y - msg.pose.pose.position.y;
         double dx_goal = odom_filtered_goal_.pose.pose.position.x - msg.pose.pose.position.x;
@@ -289,14 +264,6 @@ public:
         robot_pose_.x = x;
         robot_pose_.y = y;
 	    robot_pose_.z = angular;
-
-        //if (! use_imu_) { // check whether or not using IMU yaw
-        //    if (! odom_yaw) {
-        //        robot_pose_.z = angular;
-        //    }
-        //    else robot_pose_.z += d_yaw_odom_;
-        //}
-        //else robot_pose_.z = imu_yaw_;
         
         odom_filtered_current_ = msg;
         cout <<"Current Pose = " << x << "; "<< y <<"; " << robot_pose_.z * 180 / M_PI <<endl;
@@ -333,11 +300,6 @@ public:
         odom_filtered_goal_ = goal_list_.front();
         goal_list_.pop();
         ROS_INFO("----------Go to the next goal--------");
-        // get x and y for goal_pose_
-        //double lat_goal = goal_gps_.latitude;
-        //double lon_goal = goal_gps_.longitude;
-        //double lat_ori  = ori_gps_.latitude;
-       // double lon_ori  = ori_gps_.longitude;
 
         goal_pose_.y = odom_filtered_goal_.pose.pose.position.y;
         goal_pose_.x = odom_filtered_goal_.pose.pose.position.x;
