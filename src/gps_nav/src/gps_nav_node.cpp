@@ -16,7 +16,6 @@ using namespace std;
 class Gps_nav {
 private:
     ros::Subscriber sub_gps;
-    ros::Subscriber sub_odom_filtered;
     ros::Subscriber sub_odom;
     ros::Subscriber sub_imu;
     ros::Publisher pub_cmd;
@@ -107,7 +106,6 @@ public:
         sub_odom = n.subscribe("/husky_velocity_controller/odom",0,&Gps_nav::updateOdomYaw,this);
         sub_imu = n.subscribe("/imu/data_raw",0,&Gps_nav::updateIMUYaw,this);
         sub_gps = n.subscribe("/odometry/filtered_gps",0,&Gps_nav::GPS_CallBack_Main,this);
-	//sub_odom_filtered = n.subscribe("/odometry/filtered_gps",0,&Gps_nav::ODOM_CALLBack_Main);
         server_goal = n.advertiseService("/collect_goal",&Gps_nav::getGoal,this);
         server_move = n.advertiseService("/move_next_goal",&Gps_nav::NextGoalMove,this);
         server_stop = n.advertiseService("/emergency_stop",&Gps_nav::emergency_stop,this);
@@ -292,7 +290,7 @@ public:
         
         robot_pose_.x = x;
         robot_pose_.y = y;
-	robot_pose_.z = angular;
+	    robot_pose_.z = angular;
 
         //if (! use_imu_) { // check whether or not using IMU yaw
         //    if (! odom_yaw) {
@@ -325,8 +323,6 @@ public:
         // update the imu yaw
         imu_yaw_ = calculateYaw(msg.orientation) + magnetic_declination_ + yaw_offset_;
     }
-
-    
 
     bool getGoal(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
         goal_list_.push(odom_filtered_current_);
