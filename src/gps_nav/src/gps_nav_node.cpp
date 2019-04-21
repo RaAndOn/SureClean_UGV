@@ -15,15 +15,15 @@ using namespace std;
 
 class Gps_nav {
 private:
-    ros::Subscriber sub_gps;
-    ros::Subscriber sub_odom;
-    ros::Subscriber sub_imu;
-    ros::Publisher pub_cmd;
-    ros::Publisher pub_status;
-    ros::ServiceServer server_goal;
-    ros::ServiceServer server_move;
-    ros::ServiceServer server_stop;
-    ros::ServiceServer server_go;
+    ros::Subscriber sub_gps_;
+    ros::Subscriber sub_odom_;
+    ros::Subscriber sub_imu_;
+    ros::Publisher pub_cmd_;
+    ros::Publisher pub_status_;
+    ros::ServiceServer server_goal_;
+    ros::ServiceServer server_move_;
+    ros::ServiceServer server_stop_;
+    ros::ServiceServer server_go_;
 
     sensor_msgs::NavSatFix goal_gps_;
     nav_msgs::Odometry odom_filtered_goal_;
@@ -99,15 +99,15 @@ public:
 
     void Loop() {
         ros::NodeHandle n;
-        pub_cmd = n.advertise<geometry_msgs::Twist>("/cmd_vel",0);
-        pub_status = n.advertise<std_msgs::Bool>("/goal_achieve_status",0);
-        sub_odom = n.subscribe("/husky_velocity_controller/odom",0,&Gps_nav::updateOdomYaw,this);
-        sub_imu = n.subscribe("/imu/data_raw",0,&Gps_nav::updateIMUYaw,this);
-        sub_gps = n.subscribe("/odometry/filtered_gps",0,&Gps_nav::GPS_CallBack_Main,this);
-        server_goal = n.advertiseService("/collect_goal",&Gps_nav::getGoal,this);
-        server_move = n.advertiseService("/move_next_goal",&Gps_nav::NextGoalMove,this);
-        server_stop = n.advertiseService("/emergency_stop",&Gps_nav::emergency_stop,this);
-        server_go   = n.advertiseService("/continue_mission",&Gps_nav::continue_move,this);
+        pub_cmd_ = n.advertise<geometry_msgs::Twist>("/cmd_vel",0);
+        pub_status_ = n.advertise<std_msgs::Bool>("/goal_achieve_status",0);
+        sub_odom_ = n.subscribe("/husky_velocity_controller/odom",0,&Gps_nav::updateOdomYaw,this);
+        sub_imu_ = n.subscribe("/imu/data_raw",0,&Gps_nav::updateIMUYaw,this);
+        sub_gps_ = n.subscribe("/odometry/filtered_gps",0,&Gps_nav::GPS_CallBack_Main,this);
+        server_goal_ = n.advertiseService("/collect_goal",&Gps_nav::getGoal,this);
+        server_move_ = n.advertiseService("/move_next_goal",&Gps_nav::NextGoalMove,this);
+        server_stop_ = n.advertiseService("/emergency_stop",&Gps_nav::emergency_stop,this);
+        server_go_   = n.advertiseService("/continue_mission",&Gps_nav::continue_move,this);
         ros::spin();
     }
 
@@ -156,7 +156,7 @@ public:
             status_ = true;
             move_signal_ = false;
         }
-        pub_status.publish(status_msgs);
+        pub_status_.publish(status_msgs);
     }
 
     float normalizeAngleDiff(float currAngle, float goalAngle) {
@@ -221,7 +221,7 @@ public:
             ctrl_msg.linear.x = 0;
         }
 
-        pub_cmd.publish(ctrl_msg);
+        pub_cmd_.publish(ctrl_msg);
 
         cout << "Control output " << ctrl_msg.linear.x << "; "<< ctrl_msg.angular.z << endl;
         status_check(check_linear,check_angular);
