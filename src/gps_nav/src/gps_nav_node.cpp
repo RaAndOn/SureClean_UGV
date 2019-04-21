@@ -186,6 +186,7 @@ public:
         else {
             ctrl_msg.linear.x = 0;
             check_linear = true;
+            ROS_INFO("---- Achieved linear goal ----");
         }
         if (fabs(d_angular) > ANGULAR_THRED && fabs(d_linear) >= DIS_RANGE) {
             double ctrl_vel_angular = ctrl_msg.angular.z;
@@ -203,7 +204,7 @@ public:
         else {
             ctrl_msg.angular.z = 0;
             check_angular = true;
-	        ROS_INFO("Angular_Achieve------");
+	        ROS_INFO("---- Achieved angular goal ----");
         }
         if (fabs(d_angular) > M_PI / 6) {
             ctrl_msg.linear.x = 0;
@@ -273,7 +274,7 @@ public:
         move_signal_ = true;
         odom_filtered_goal_ = goal_list_.front();
         goal_list_.pop();
-        ROS_INFO("----------Go to the next goal--------");
+        ROS_INFO("---------- Go to the next goal --------");
         goal_pose_.y = odom_filtered_goal_.pose.pose.position.y;
         goal_pose_.x = odom_filtered_goal_.pose.pose.position.x;
         return true;
