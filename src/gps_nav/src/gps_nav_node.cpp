@@ -53,7 +53,6 @@ private:
     float Kp_;
     float Kd_;
 
-    float THRED_MOVEMENT;
     float ANGULAR_THRED; 
     float LINEAR_THRED; 
     float RADIUS_EARTH;
@@ -69,7 +68,6 @@ public:
 
         use_imu_ = false;
 
-        THRED_MOVEMENT = 0.01;
         ANGULAR_THRED = 0.04;
         LINEAR_THRED = 0.1;
         RADIUS_EARTH = 6378.137;
