@@ -61,7 +61,7 @@ private:
     float MAX_ANGULAR;
     float MIN_ANGULAR;
     float DIS_RANGE;
-    int   Aver_Time;
+    int   AVER_TIME;
 
 public:
     Gps_nav() {
@@ -76,7 +76,7 @@ public:
         MAX_ANGULAR = 0.5;
         MIN_ANGULAR = 0.15;
         DIS_RANGE = 1;
-        Aver_Time = 50;
+        AVER_TIME = 50;
 
         Kp_ = 1;
         Kd_ = 0.05;
@@ -113,11 +113,11 @@ public:
         double sign = 1;
 
         if (lon1 == 0 && lon2 == 0) {
-            if (lat2 >= lat1) sign = 1;  // heading north
+            if (lat2 >= lat1) sign = 1;
             else sign = -1;
         }
         if (lat1 == 0 && lat2 == 0) {
-            if (lon2 >= lon1) sign = 1;  // heading west
+            if (lon2 >= lon1) sign = 1;
             else sign = -1;
         }
         
@@ -229,14 +229,14 @@ public:
     void GPS_CallBack_Main(const nav_msgs::Odometry msg) {
         // set origin
         bool odom_yaw = false;
-        if (move_status_ == false && ori_index_ <= Aver_Time && ori_status_ == false) {
+        if (move_status_ == false && ori_index_ <= AVER_TIME && ori_status_ == false) {
             ROS_INFO("Initializing Origin --- Robot NOT Moving");
             ROS_INFO("Yaw is not useful right now");
             //use for generate postion
             ori_index_ += 1;
         }
 
-        if ((ori_index_ > Aver_Time || move_status_ == true) && ori_status_ == false) {
+        if ((ori_index_ > AVER_TIME || move_status_ == true) && ori_status_ == false) {
             odom_filtered_ori_ = msg;
             cout << setprecision(10) <<"Ori_GPS = " <<odom_filtered_ori_.pose.pose.position.x<<"; "<<odom_filtered_ori_.pose.pose.position.y<<"; "<<endl;
             ROS_INFO("------------------Origin Initialization Completed-------------");
