@@ -32,7 +32,7 @@ private:
     sensor_msgs::NavSatFix gps_current_;
     nav_msgs::Odometry odom_filtered_current_;
     nav_msgs::Odometry odom_current_;
-    // Point x -- north, y -- west and z -- yaw
+    // Point x -- east, y -- north and z -- yaw (up)
     geometry_msgs::Point goal_pose_;
     geometry_msgs::Point robot_pose_;
     queue<nav_msgs::Odometry> goal_list_;
