@@ -20,7 +20,6 @@ private:
     ros::Subscriber sub_imu;
     ros::Publisher pub_cmd;
     ros::Publisher pub_status;
-    ros::Publisher pub_mission_status;
     ros::ServiceServer server_goal;
     ros::ServiceServer server_move;
     ros::ServiceServer server_stop;
@@ -102,7 +101,6 @@ public:
         ros::NodeHandle n;
         pub_cmd = n.advertise<geometry_msgs::Twist>("/cmd_vel",0);
         pub_status = n.advertise<std_msgs::Bool>("/goal_achieve_status",0);
-        pub_mission_status = n.advertise<std_msgs::Bool>("/mission_status",0);
         sub_odom = n.subscribe("/husky_velocity_controller/odom",0,&Gps_nav::updateOdomYaw,this);
         sub_imu = n.subscribe("/imu/data_raw",0,&Gps_nav::updateIMUYaw,this);
         sub_gps = n.subscribe("/odometry/filtered_gps",0,&Gps_nav::GPS_CallBack_Main,this);
@@ -216,7 +214,7 @@ public:
         else {
             ctrl_msg.angular.z = 0;
             check_angular = true;
-	    ROS_INFO("Angular_Achieve------");
+	        ROS_INFO("Angular_Achieve------");
         }
 
         if (fabs(d_angular) > M_PI / 6) {
@@ -302,11 +300,6 @@ public:
         
         odom_filtered_current_ = msg;
         cout <<"Current Pose = " << x << "; "<< y <<"; " << robot_pose_.z * 180 / M_PI <<endl;
-
-        ROS_INFO("------------------------------");
-        std_msgs::Bool mission_msgs;
-        mission_msgs.data = mission_status_;
-        pub_mission_status.publish(mission_msgs);
 
         if (move_signal_) {
             contrl_husky();
