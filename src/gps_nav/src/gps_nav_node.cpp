@@ -293,7 +293,7 @@ public:
 
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "image_converter");
+    ros::init(argc, argv, "gps_nav_node");
     Gps_nav gps_ctrl;
     gps_ctrl.Loop();
 }
