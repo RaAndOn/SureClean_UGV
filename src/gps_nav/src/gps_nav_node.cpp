@@ -111,7 +111,6 @@ public:
 
     double UTC2Map(double lat1, double lat2, double lon1, double lon2) {
         double sign = 1;
-
         if (lon1 == 0 && lon2 == 0) {
             if (lat2 >= lat1) sign = 1;
             else sign = -1;
@@ -120,7 +119,6 @@ public:
             if (lon2 >= lon1) sign = 1;
             else sign = -1;
         }
-        
         double R = RADIUS_EARTH;
         double dLat = lat2 * M_PI / 180 - lat1 * M_PI / 180;
         double dLon = lon2 * M_PI / 180 - lon1 * M_PI / 180;
@@ -168,18 +166,14 @@ public:
     void contrl_husky() {
         geometry_msgs::Twist ctrl_msg;
         // PD control of husky
-
         float goal_angular = goal_pose_.z;
         float current_angular = robot_pose_.z;
         float d_angular = normalizeAngleDiff(current_angular, goal_angular);
-
         float dx = goal_pose_.x - robot_pose_.x;
         float dy = goal_pose_.y - robot_pose_.y;
         double d_linear = sqrt(pow(dx,2) + pow(dy,2));
-
         bool check_linear;
         bool check_angular;
-        
         if (d_linear > LINEAR_THRED) {
             double ctrl_vel_linear = ctrl_msg.linear.x;
             if (d_linear > DIS_RANGE) {
@@ -193,7 +187,6 @@ public:
             ctrl_msg.linear.x = 0;
             check_linear = true;
         }
-
         if (fabs(d_angular) > ANGULAR_THRED && fabs(d_linear) >= DIS_RANGE) {
             double ctrl_vel_angular = ctrl_msg.angular.z;
             if (fabs(d_angular) > M_PI/2) {
@@ -201,12 +194,10 @@ public:
             }
             // right handed
             ctrl_msg.angular.z =  (Kp_ * MAX_ANGULAR * d_angular / (M_PI/2));
-            
             if (fabs(ctrl_msg.angular.z) < MIN_ANGULAR) {
                 float angular_sign = ctrl_msg.angular.z / fabs(ctrl_msg.angular.z);
                 ctrl_msg.angular.z = angular_sign * MIN_ANGULAR;
             }
-
             check_angular = false;
         }
         else {
@@ -214,13 +205,10 @@ public:
             check_angular = true;
 	        ROS_INFO("Angular_Achieve------");
         }
-
         if (fabs(d_angular) > M_PI / 6) {
             ctrl_msg.linear.x = 0;
         }
-
         pub_cmd_.publish(ctrl_msg);
-
         cout << "Control output " << ctrl_msg.linear.x << "; "<< ctrl_msg.angular.z << endl;
         status_check(check_linear,check_angular);
     }
@@ -235,37 +223,26 @@ public:
             //use for generate postion
             ori_index_ += 1;
         }
-
         if ((ori_index_ > AVER_TIME || move_status_ == true) && ori_status_ == false) {
             odom_filtered_ori_ = msg;
             cout << setprecision(10) <<"Ori_GPS = " <<odom_filtered_ori_.pose.pose.position.x<<"; "<<odom_filtered_ori_.pose.pose.position.y<<"; "<<endl;
             ROS_INFO("------------------Origin Initialization Completed-------------");
             ori_status_ = true;
         }
-
         cout << setprecision(10) << "Ori_Position_ = "<<odom_filtered_ori_.pose.pose.position.x<<"; "<<odom_filtered_ori_.pose.pose.position.y<<endl;
-
         double angular = calculateYaw(msg.pose.pose.orientation);
-
         cout << "Current Orientation: " << angular * 180 / M_PI << endl;
-
         double y = msg.pose.pose.position.y;
         double x = msg.pose.pose.position.x;
-
         double dy_goal = odom_filtered_goal_.pose.pose.position.y - msg.pose.pose.position.y;
         double dx_goal = odom_filtered_goal_.pose.pose.position.x - msg.pose.pose.position.x;
-
         goal_pose_.z = atan2(dy_goal,dx_goal);
-        
         cout <<"Goal Pose = " <<goal_pose_.x<< "; "<< goal_pose_.y << "; " << goal_pose_.z * 180 / M_PI <<endl;
-        
         robot_pose_.x = x;
         robot_pose_.y = y;
 	    robot_pose_.z = angular;
-        
         odom_filtered_current_ = msg;
         cout <<"Current Pose = " << x << "; "<< y <<"; " << robot_pose_.z * 180 / M_PI <<endl;
-
         if (move_signal_) {
             contrl_husky();
         }
@@ -278,7 +255,6 @@ public:
     }
 
     void updateIMUYaw(const sensor_msgs::Imu msg) {
-        // update the imu yaw
         imu_yaw_ = calculateYaw(msg.orientation) + magnetic_declination_ + yaw_offset_;
     }
 
@@ -298,10 +274,8 @@ public:
         odom_filtered_goal_ = goal_list_.front();
         goal_list_.pop();
         ROS_INFO("----------Go to the next goal--------");
-
         goal_pose_.y = odom_filtered_goal_.pose.pose.position.y;
         goal_pose_.x = odom_filtered_goal_.pose.pose.position.x;
-
         return true;
     }
 
