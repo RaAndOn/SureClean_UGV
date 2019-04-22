@@ -187,7 +187,7 @@ public:
             ctrl_msg.linear.x = 0;
         }
         pub_cmd_.publish(ctrl_msg);
-        cout << "Control output " << ctrl_msg.linear.x << "; "<< ctrl_msg.angular.z << endl;
+        cout << "Control output --- Linear: " << ctrl_msg.linear.x << "; Angular: "<< ctrl_msg.angular.z << endl;
         status_check(check_linear,check_angular);
     }
    
