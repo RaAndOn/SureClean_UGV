@@ -36,6 +36,7 @@ private:
     bool move_signal_;
     bool move_status_;
     bool ori_status_ ;
+    bool final_approach_;
     float Kp_;
     float Kd_;
 
@@ -58,11 +59,11 @@ public:
         LINEAR_THRED = 0.1;
         MOVE_THRED = 0.01;
         RADIUS_EARTH = 6378.137;
-        MAX_SPEED = 1;
-        MIN_SPEED = 0.4;
+        MAX_SPEED = 0.5;
+        MIN_SPEED = 0.2;
         MAX_ANGULAR = 0.5;
         MIN_ANGULAR = 0.15;
-        DIS_RANGE = 1;
+        DIS_RANGE = 2;
         AVER_TIME = 10;
 
         Kp_ = 1;
@@ -70,6 +71,7 @@ public:
         move_signal_ = false;
         move_status_ = false;
         ori_status_ = false;
+        final_approach_ = false;
 
         magnetic_declination_ = -0.16347917327;
     }
@@ -85,6 +87,12 @@ public:
         server_stop_ = n.advertiseService("/emergency_stop",&Gps_nav::emergency_stop,this);
         server_go_   = n.advertiseService("/continue_mission",&Gps_nav::continue_move,this);
         ros::spin();
+    }
+
+    int signNum(double num)
+    // Return the sign of a number
+    {
+      return (num < 0.0) ? -1 : 1;
     }
 
     double UTC2Map(double lat1, double lat2, double lon1, double lon2) {
@@ -125,7 +133,7 @@ public:
     void status_check(bool linear, bool angular) {
         std_msgs::Bool status_msgs;
         status_msgs.data = false;
-        if (linear && angular) {
+        if (linear) {
             status_msgs.data = true;
             move_signal_ = false;
             pub_status_.publish(status_msgs);
@@ -151,40 +159,67 @@ public:
         double d_linear = sqrt(pow(dx,2) + pow(dy,2));
         bool check_linear;
         bool check_angular;
-        if (d_linear > LINEAR_THRED) {
-            double ctrl_vel_linear = ctrl_msg.linear.x;
-            if (d_linear > DIS_RANGE) {
-                d_linear = DIS_RANGE;
-            }
-            ctrl_msg.linear.x  = Kp_ * MAX_SPEED * d_linear/DIS_RANGE;
-            if (ctrl_msg.linear.x < MIN_SPEED) ctrl_msg.linear.x = MIN_SPEED;
-            check_linear = false;
-        }
-        else {
+        if (d_linear <= DIS_RANGE && !final_approach_)
+        {
+            ROS_INFO("FINAL APPROACH");
             ctrl_msg.linear.x = 0;
-            check_linear = true;
-            ROS_INFO("---- Achieved linear goal ----");
-        }
-        if (fabs(d_angular) > ANGULAR_THRED && fabs(d_linear) >= DIS_RANGE) {
-            double ctrl_vel_angular = ctrl_msg.angular.z;
-            if (fabs(d_angular) > M_PI/2) {
-                d_angular = M_PI/2;
+            if (fabs(d_angular) > ANGULAR_THRED ) {
+                double ctrl_vel_angular = ctrl_msg.angular.z;
+                if (fabs(d_angular) > M_PI/2) {
+                    d_angular = signNum(d_angular)*M_PI/2;
+                }
+                // right handed
+                ctrl_msg.angular.z =  (Kp_ * MAX_ANGULAR * d_angular / (M_PI/2));
+                if (fabs(ctrl_msg.angular.z) < MIN_ANGULAR) {
+                    float angular_sign = ctrl_msg.angular.z / fabs(ctrl_msg.angular.z);
+                    ctrl_msg.angular.z = angular_sign * MIN_ANGULAR;
+                }
+                check_angular = false;
             }
-            // right handed
-            ctrl_msg.angular.z =  (Kp_ * MAX_ANGULAR * d_angular / (M_PI/2));
-            if (fabs(ctrl_msg.angular.z) < MIN_ANGULAR) {
-                float angular_sign = ctrl_msg.angular.z / fabs(ctrl_msg.angular.z);
-                ctrl_msg.angular.z = angular_sign * MIN_ANGULAR;
+            else
+            {
+                final_approach_ = true;
             }
-            check_angular = false;
+            
+
         }
-        else {
-            ctrl_msg.angular.z = 0;
-            check_angular = true;
-	        ROS_INFO("---- Achieved angular goal ----");
-        }
-        if (fabs(d_angular) > M_PI / 6) {
-            ctrl_msg.linear.x = 0;
+        else
+        {
+            if (d_linear > LINEAR_THRED && move_signal_) {
+                double ctrl_vel_linear = ctrl_msg.linear.x;
+                if (d_linear > DIS_RANGE) {
+                    d_linear = DIS_RANGE;
+                }
+                ctrl_msg.linear.x  = Kp_ * MAX_SPEED * d_linear/DIS_RANGE;
+                if (ctrl_msg.linear.x < MIN_SPEED) ctrl_msg.linear.x = MIN_SPEED;
+                check_linear = false;
+            }
+            else {
+                ctrl_msg.linear.x = 0;
+                check_linear = true;
+                ROS_INFO("---- Achieved linear goal ----");
+            }
+            if (fabs(d_angular) > ANGULAR_THRED  && move_signal_) { // && fabs(d_linear) >= DIS_RANGE) {
+                double ctrl_vel_angular = ctrl_msg.angular.z;
+                if (fabs(d_angular) > M_PI/2) {
+                    d_angular = M_PI/2;
+                }
+                // right handed
+                ctrl_msg.angular.z =  (Kp_ * MAX_ANGULAR * d_angular / (M_PI/2));
+                if (fabs(ctrl_msg.angular.z) < MIN_ANGULAR) {
+                    float angular_sign = ctrl_msg.angular.z / fabs(ctrl_msg.angular.z);
+                    ctrl_msg.angular.z = angular_sign * MIN_ANGULAR;
+                }
+                check_angular = false;
+            }
+            else {
+                ctrl_msg.angular.z = 0;
+                check_angular = true;
+                ROS_INFO("---- Achieved angular goal ----");
+            }
+            if (fabs(d_angular) > M_PI / 24) {
+                ctrl_msg.linear.x = 0;
+            }
         }
         pub_cmd_.publish(ctrl_msg);
         cout << "Control output --- Linear: " << ctrl_msg.linear.x << "; Angular: "<< ctrl_msg.angular.z << endl;
@@ -214,7 +249,7 @@ public:
     }
 
     bool getGoal(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
-        nav_msgs::Odometry goal;
+        /* nav_msgs::Odometry goal;
         goal = odom_filtered_current_;
         bool index = 1;
         while (fabs(robot_vel_.linear.x) <= MOVE_THRED && fabs(robot_vel_.linear.y) <= MOVE_THRED && index < AVER_TIME) {
@@ -225,8 +260,8 @@ public:
         goal.pose.pose.position.x = goal.pose.pose.position.x / index;
         goal.pose.pose.position.y = goal.pose.pose.position.y / index;
         ROS_INFO("GOAL RECEIEVED!");
-        goal_list_.push(goal);
-        // goal_list_.push(odom_filtered_current_);
+        goal_list_.push(goal);*/
+        goal_list_.push(odom_filtered_current_);
         return true;
     }
 
