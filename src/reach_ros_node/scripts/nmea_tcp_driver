@@ -133,8 +133,8 @@ if __name__ == '__main__':
     rospy.init_node('reach_ros_node')
 
     # Read in ROS parameters
-    host = rospy.get_param('~host', 'reach.local')
-    port = rospy.get_param('~port', 12346)
+    host = rospy.get_param('~host', '192.168.0.102')
+    port = rospy.get_param('~port', 9002)
 
     # Open the socket to our device, and start streaming the data
     device = ReachSocketHandler(host,port)
