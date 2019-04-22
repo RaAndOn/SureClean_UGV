@@ -14,10 +14,6 @@ void getStatus(const std_msgs::Bool &msg) {
     else ROS_INFO("----------Mission Complete------");
 }
 
-void getMissionStatus(const std_msgs::Bool &msg) {
-    mission_status_ = msg.data;
-}
-
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "mission_start");

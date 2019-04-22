@@ -48,7 +48,7 @@ private:
     float MAX_ANGULAR;
     float MIN_ANGULAR;
     float DIS_RANGE;
-    int   AVER_TIME
+    int   AVER_TIME;
 
 public:
     Gps_nav() {
@@ -67,11 +67,9 @@ public:
 
         Kp_ = 1;
         Kd_ = 0.05;
-        ori_index_ = 0;
         move_signal_ = false;
         move_status_ = false;
         ori_status_ = false;
-        d_yaw_odom_ = 0;
 
         magnetic_declination_ = -0.16347917327;
     }
@@ -81,7 +79,7 @@ public:
         ros::NodeHandle n;
         pub_cmd_ = n.advertise<geometry_msgs::Twist>("/cmd_vel",0);
         pub_status_ = n.advertise<std_msgs::Bool>("/goal_achieve_status",0);
-        sub_gps_ = n.subscribe("/odometry/filtered_gps",0,&Gps_nav::GPS_CallBack_Main,this);
+        sub_gps_ = n.subscribe("/odometry/filtered_gps",0,&Gps_nav::Main_CallBack,this);
         server_goal_ = n.advertiseService("/collect_goal",&Gps_nav::getGoal,this);
         server_move_ = n.advertiseService("/move_next_goal",&Gps_nav::NextGoalMove,this);
         server_stop_ = n.advertiseService("/emergency_stop",&Gps_nav::emergency_stop,this);
@@ -226,7 +224,7 @@ public:
         }
         goal.pose.pose.position.x = goal.pose.pose.position.x / index;
         goal.pose.pose.position.y = goal.pose.pose.position.y / index;
-        ROS_INFO("GOAL RECEIEVED!")
+        ROS_INFO("GOAL RECEIEVED!");
         goal_list_.push(goal);
         // goal_list_.push(odom_filtered_current_);
         return true;
