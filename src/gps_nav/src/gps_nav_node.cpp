@@ -37,6 +37,7 @@ private:
     bool move_status_;
     bool ori_status_ ;
     bool final_approach_;
+    bool autonomous_;
     float Kp_;
     float Kd_;
 
@@ -72,7 +73,7 @@ public:
         move_status_ = false;
         ori_status_ = false;
         final_approach_ = false;
-
+        autonomous_ = true;
         magnetic_declination_ = -0.16347917327;
     }
     ~Gps_nav() {}
@@ -137,7 +138,10 @@ public:
             status_msgs.data = true;
             move_signal_ = false;
             pub_status_.publish(status_msgs);
-        } 
+            if (!goal_list_.empty() && autonomous_){
+                moveToNextGoal();
+            }
+        }
     }
 
     float normalizeAngleDiff(float currAngle, float goalAngle) {
@@ -266,6 +270,23 @@ public:
     }
 
     bool NextGoalMove(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
+    /*    if (goal_list_.empty()) {
+            move_signal_ = false;
+            ROS_ERROR("No goal gps in the goal list");
+            return false;
+        }
+        move_signal_ = true;
+        odom_filtered_goal_ = goal_list_.front();
+        goal_list_.pop();
+        ROS_INFO("---------- Go to the next goal --------");
+        goal_pose_.y = odom_filtered_goal_.pose.pose.position.y;
+        goal_pose_.x = odom_filtered_goal_.pose.pose.position.x;
+        return true;
+     */
+        return moveToNextGoal();
+    }
+
+    bool moveToNextGoal() {
         if (goal_list_.empty()) {
             move_signal_ = false;
             ROS_ERROR("No goal gps in the goal list");
