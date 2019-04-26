@@ -1,0 +1,22 @@
+
+<launch>
+  <arg name="sim" default="false" />
+
+  <include file="$(find robot_localization)/launch/sim_sureclean_navsat_ekf.launch"/>
+
+  <node pkg="gps_nav" type="gps_nav_node" name="gps_nav_node" clear_params="true" output="screen">
+    <remap from="/gps/fix" to="/navsat/fix" if="$(arg sim)"/>
+  </node>
+
+  <node pkg="movement" type="movement_node" name="movement_node" clear_params="true" output="screen">
+    <param name="kp_linear" value="1.0"/>
+    <param name="kp_angular" value="1.0"/>
+    <param name="min_angular" value="0.15"/>
+    <param name="max_angular_" value="0.5"/>
+    <param name="min_linear" value="0.2"/>
+    <param name="max_linear" value="0.5"/>
+    <param name="final_approach_range" value="2.0"/>
+    <param name="angular_thresh" value="0.04"/>
+    <param name="linear_thresh" value="0.1"/>
+  </node>
+</launch>

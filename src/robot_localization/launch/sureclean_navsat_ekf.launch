@@ -16,8 +16,15 @@
 
   <node pkg="robot_localization" type="ekf_localization_node" name="ekf_se_map" clear_params="true">
     <remap from="odometry/filtered" to="odometry/filtered_gps"/>
+    <remap from="/imu/data_raw" to="/imu/data" if="$(arg sim)"/>
   </node>
 
-  <node pkg="robot_localization" type="navsat_transform_node" name="navsat_transform" clear_params="true"/>
+  <node pkg="robot_localization" type="navsat_transform_node" name="navsat_transform" clear_params="true">
+    
+    <!-- The "from" topics are the defualt navsat topics, the "to" topics are the actual topics being published to by the husky -->
+    <remap from="/odometry/filtered" to="/odometry/filtered_gps"/>
+    <remap from="/gps/fix" to="/navsat/fix" if="$(arg sim)"/>
+    <remap from="/imu/data" to="/imu/data_raw" unless="$(arg sim)"/>
+  </node>
 
 </launch>
