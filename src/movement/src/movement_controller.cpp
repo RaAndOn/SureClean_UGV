@@ -88,7 +88,7 @@ class Move
       return yaw;
     }
 
-    void setGoalCallback(const geometry_msgs::Pose newGoal)
+    void setGoalCallback(const nav_msgs::Odometry newGoal)
     // Set a new goal
     {
       if(moveSignal_ == false) // only set goal if there is not one currently active
@@ -97,10 +97,10 @@ class Move
         startOdom_ = *(ros::topic::waitForMessage<nav_msgs::Odometry>("odometry/filtered", n_));
 
         // Set goal pose for pidCallback
-        goal_ = newGoal;
+        goal_ = newGoal.pose.pose;
         // Set linear and angular goal terms for pointAndShootCallback
-        xGoal_ = calculateDistance(newGoal, startOdom_.pose.pose);
-        yawGoal_ = calculateYawFromQuaterion(newGoal);
+        xGoal_ = calculateDistance(newGoal.pose.pose, startOdom_.pose.pose);
+        yawGoal_ = calculateYawFromQuaterion(newGoal.pose.pose);
 
         // Set loop terms
         rotationComplete_ = false;
