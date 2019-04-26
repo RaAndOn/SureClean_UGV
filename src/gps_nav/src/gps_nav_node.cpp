@@ -104,8 +104,10 @@ public:
       nav_msgs::Odometry odomGoal;
       odomGoal.pose.pose.position.x = goalPoint.point.x;
       odomGoal.pose.pose.position.y = goalPoint.point.y;
-      
+      ROS_INFO("---------- Goal collected --------");
       goalList_.push(odomGoal);
+      std::cout << "x: "<< odomGoal.pose.pose.position.x << "; y: "<< odomGoal.pose.pose.position.y << std::endl;
+      std::cout << "latitude: "<< currGPS_.latitude << "; longitude: "<< currGPS_.longitude << std::endl; 
       return true;
   }
 

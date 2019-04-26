@@ -54,7 +54,7 @@ namespace RobotLocalization
     has_transform_gps_(false),
     has_transform_imu_(false),
     transform_good_(false),
-    gps_frame_id_("rear_right_wheel_link"),
+    gps_frame_id_(""),
     gps_updated_(false),
     odom_updated_(false),
     publish_gps_(false),
@@ -161,13 +161,13 @@ namespace RobotLocalization
       }
     }
 
-    ros::Subscriber odom_sub = nh.subscribe("husky_velocity_controller/odom", 1, &NavSatTransform::odomCallback, this);
+    ros::Subscriber odom_sub = nh.subscribe("odometry/filtered", 1, &NavSatTransform::odomCallback, this);
     ros::Subscriber gps_sub = nh.subscribe("gps/fix", 1, &NavSatTransform::gpsFixCallback, this);
     ros::Subscriber imu_sub;
 
     if (!use_odometry_yaw_ && !use_manual_datum_)
     {
-      imu_sub = nh.subscribe("imu/data_raw", 1, &NavSatTransform::imuCallback, this);
+      imu_sub = nh.subscribe("imu/data", 1, &NavSatTransform::imuCallback, this);
     }
 
     ros::Publisher gps_odom_pub = nh.advertise<nav_msgs::Odometry>("odometry/gps", 10);

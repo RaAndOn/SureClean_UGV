@@ -43,7 +43,6 @@ class Move
       n_.param("max_angular_", maxAngular_, 0.5);
       n_.param("min_linear", minLinear_, 0.2);
       n_.param("max_linear", maxLinear_, 0.5);
-      n_.param("min_linear", minLinear_, 0.2);
       n_.param("final_approach_range", finalApproachRange_, 2.0);
       n_.param("angular_thresh", angularThresh_, 0.04);
       n_.param("linear_thresh", linearThresh_, 0.1);
@@ -93,14 +92,11 @@ class Move
     {
       if(moveSignal_ == false) // only set goal if there is not one currently active
       {
-        // Set the starting odometry as reference
-        startOdom_ = *(ros::topic::waitForMessage<nav_msgs::Odometry>("odometry/filtered", n_));
-
         // Set goal pose for pidCallback
         goal_ = newGoal.pose.pose;
-        // Set linear and angular goal terms for pointAndShootCallback
-        xGoal_ = calculateDistance(newGoal.pose.pose, startOdom_.pose.pose);
-        yawGoal_ = calculateYawFromQuaterion(newGoal.pose.pose);
+
+        // ROS_INFO("---------- Moving to Goal --------");
+        std::cout << "x: "<< goal_.position.x << "; y: "<< goal_.position.y << std::endl;
 
         // Set loop terms
         rotationComplete_ = false;
@@ -240,6 +236,7 @@ class Move
       if (linearComplete_) {
         status_msgs.data = true;
         moveSignal_ = false;
+        ROS_INFO("---------- Goal Achieved --------");
         pubStatus_.publish(status_msgs);
       }
     }
@@ -272,8 +269,6 @@ class Move
 
     bool rotationComplete_;
     bool linearComplete_;
-
-    nav_msgs::Odometry startOdom_;
 
     double minAngular_;
     double maxAngular_;
