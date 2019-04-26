@@ -134,46 +134,38 @@ class Move
     // This function determines the yaw needed to rotate robot such that it is facing its goal
     {
       double yawCurr = calculateYawFromQuaterion(currPose); // Get current yaw in odom frame
-
-      // Rotate positons by inverse transform, to put them in the robot's body frame
-      double robotFrameX = currPose.position.x*cos(yawCurr) + currPose.position.y*sin(yawCurr);
-      double robotFrameY = -currPose.position.x*sin(yawCurr) + currPose.position.y*cos(yawCurr);
-
-      double robotFrameGoalX = goal_.position.x*cos(yawCurr) + goal_.position.y*sin(yawCurr);
-      double robotFrameGoalY = -goal_.position.x*sin(yawCurr) + goal_.position.y*cos(yawCurr);
-
-      // Calculate the delta yaw needed to directly face the goal
-      double deltaX = robotFrameGoalX - robotFrameX;
-      double deltaY = robotFrameGoalY - robotFrameY;
-      return atan2(deltaY, deltaX);
+      double dyGoal = goal_.position.y - currPose.position.y;
+      double dxGoal = goal_.position.x - currPose.position.x;
+      double yawGoal = atan2(dyGoal,dxGoal);
+      return normalizeAngleDiff(yawCurr, yawGoal);
     }
 
     void huskyControlCallback(const nav_msgs::Odometry odom)
     {
       geometry_msgs::Twist command;
-      // double errAngular = calculateDeltaYawFromPositions(odom.pose.pose);
-      double yawCurr = calculateYawFromQuaterion(odom.pose.pose);
-      double errAngular = normalizeAngleDiff(yawCurr, yawGoal_);
+      double errAngular = calculateDeltaYawFromPositions(odom.pose.pose);
       double errLinear = calculateDistance(odom.pose.pose, goal_);
       if (moveSignal_)
       {
         if (errLinear <= finalApproachRange_ && !onFinalApproach_)
         {
-          ROS_INFO("FINAL APPROACH");
           command.angular.z = angularController(errAngular);
           if (rotationComplete_)
           {
+            ROS_INFO("FINAL APPROACH");
             onFinalApproach_ = true;
           }
         }
         else
         {
           command.angular.z = angularController(errAngular);
-          if (fabs(errAngular) > M_PI / 24)
+          if (fabs(errAngular) < M_PI / 24)
           {
             command.linear.x = linearController(errLinear);
           }
         }
+        ROS_INFO("Linear Command: %f", command.linear.x);
+        ROS_INFO("Angular Command: %f", command.angular.z);
       }
       pub_.publish(command);
       status_check();
@@ -233,7 +225,7 @@ class Move
     void status_check() {
       std_msgs::Bool status_msgs;
       status_msgs.data = false;
-      if (linearComplete_) {
+      if (linearComplete_ && moveSignal_) {
         status_msgs.data = true;
         moveSignal_ = false;
         ROS_INFO("---------- Goal Achieved --------");
@@ -263,7 +255,6 @@ class Move
     bool moveSignal_;
     bool onFinalApproach_;
     geometry_msgs::Pose goal_;
-    double yawGoal_;
 
     double xGoal_;
 
