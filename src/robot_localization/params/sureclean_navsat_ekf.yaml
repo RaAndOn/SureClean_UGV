@@ -1,6 +1,6 @@
 # For parameter descriptions, please refer to the template parameter files for each node.
 
-ekf_se_map:
+ekf_node:
   frequency: 30
   sensor_timeout: 0.1
   two_d_mode: false
