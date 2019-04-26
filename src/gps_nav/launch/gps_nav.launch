@@ -2,14 +2,18 @@
 <launch>
   <arg name="sim" default="false" />
 
-  <include file="$(find robot_localization)/launch/sureclean_navsat_ekf.launch">
+  <!-- Launch localization if in simulation, otherwise this is handled elsewhere on the Husky-->
+  <include file="$(find robot_localization)/launch/sureclean_navsat_ekf.launch" if="$(arg sim)">
     <arg name="sim" value="$(arg sim)"/>
   </include>
 
+  <!-- GPS navigation node, handles collecting and sending waypoints to controller-->
   <node pkg="gps_nav" type="gps_nav_node" name="gps_nav_node" clear_params="true" output="screen">
+    <param name="autonomous" value="true"/>
     <remap from="/gps/fix" to="/navsat/fix" if="$(arg sim)"/>
   </node>
 
+  <!-- Movement controller-->
   <node pkg="movement" type="movement_node" name="movement_node" clear_params="true" output="screen">
     <param name="kp_linear" value="1.0"/>
     <param name="kp_angular" value="1.0"/>

@@ -2,22 +2,22 @@
 source /etc/ros/setup.bash
 source /opt/ros/kinetic/setup.bash
 source /home/nvidia/SureClean_UGV/devel/setup.bash
-sleep 10
+sleep 5
+# Adjust the imu port latency
+setserial /dev/ttyIMU0 low_latency
 # Restart husky service to launch default husky nodes and roscore
 sudo service husky-core restart
 # wait until roscore is running
 until rostopic list ; do sleep 1; done
+sleep 3
+rosrun reach_ros_node nmea_tcp_driver &
 sleep 2
-# Kill deafualt imu node to make room for actual node
-rosnode kill /um6_driver
-rosnode kill /imu_manager
-rosnode kill /imu_data_transformer
-rosnode kill /imu_filter
-# Wait to be sure it has taken effect
-sleep 2
-# launch imu nodes
-# rosrun um7 um7_driver _port:=/dev/ttyIMU0 _covariance:="100 100 100 100 100 100 0 0 0" &
-roslaunch robot_localization um7_mag.launch
-# roslaunch robot_localization imu_transformer.launch &
+# Reset imu ekf and gyros
+rosservice call /imu_um7/reset "set_mag_ref: true"
+rosservice call /imu_um7/reset "zero_gyros: true"
+rosservice call /imu_um7/reset "reset_ekf: true"
+# Run Setup Fused Odometry
+rosnode kill ekf_localization &
+roslaunch robot_localization sureclean_navsat_ekf.launch &
 # Launch teleop node
 roslaunch teleop_twist_joy teleop.launch &

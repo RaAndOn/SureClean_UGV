@@ -157,6 +157,7 @@ class Move
     }
 
     double angularController(double errAngular)
+    // This function returns the angular command for the robot
     {
       double commandAngular = 0;
       if (fabs(errAngular) > angularThresh_ ) {
@@ -181,8 +182,7 @@ class Move
     }
 
     double linearController(double errLinear)
-    // This function moves the robot forward at a minimum speed until it traves a predetermined distance. 
-    // It only moves forward, not back, due to the way the Sureclean robot picks up litter
+    // This function returns the linear command for the robot
     {
       double commandLinear = 0;
 
@@ -207,6 +207,7 @@ class Move
     }
 
     void status_check() {
+    // This function determines whether the robot has reachced its goal
       std_msgs::Bool status_msgs;
       status_msgs.data = false;
       if (linearComplete_ && moveSignal_) {
@@ -218,13 +219,15 @@ class Move
     }
 
     bool emergencyStop(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
-        moveSignal_ = false;
-        return true;
+    // This service will stop the robot
+      moveSignal_ = false;
+      return true;
     }
 
     bool continueMove(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
-        moveSignal_ = true;
-        return true;
+    // This service will undo the emergency stop
+      moveSignal_ = true;
+      return true;
     }
 
   private:
@@ -261,13 +264,8 @@ class Move
 
 int main(int argc, char** argv)
 {
-
   ros::init(argc, argv, "move_pid");
-  
   Move move;
-  
-  
-
   ros::Rate loop_rate(200);
   ROS_INFO("In main\n");
   while(ros::ok()) {
