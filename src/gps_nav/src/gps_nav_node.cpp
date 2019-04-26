@@ -57,8 +57,8 @@ public:
     //Construct UTM_point and map_point geometry messages
     utmPointOutput.header.frame_id = "utm";
     utmPointOutput.header.stamp = ros::Time(0);
-    utmPointOutput.point.x = utm_x;
-    utmPointOutput.point.y = utm_y;
+    utmPointOutput.point.x = utmX;
+    utmPointOutput.point.y = utmY;
     utmPointOutput.point.z = 0;
 
     return utmPointOutput;
