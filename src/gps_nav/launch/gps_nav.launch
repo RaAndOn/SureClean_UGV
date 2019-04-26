@@ -2,7 +2,9 @@
 <launch>
   <arg name="sim" default="false" />
 
-  <include file="$(find robot_localization)/launch/sim_sureclean_navsat_ekf.launch"/>
+  <include file="$(find robot_localization)/launch/sureclean_navsat_ekf.launch">
+    <arg name="sim" value="$(arg sim)"/>
+  </include>
 
   <node pkg="gps_nav" type="gps_nav_node" name="gps_nav_node" clear_params="true" output="screen">
     <remap from="/gps/fix" to="/navsat/fix" if="$(arg sim)"/>
