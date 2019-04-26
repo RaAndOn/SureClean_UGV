@@ -15,27 +15,12 @@ class Move
       // Point x -- east, y -- north and z -- yaw (up)
     Move()
     {
-      // Gains for linear PID controller
-      // kpLinear_ = 1.0;
-      // kdLinear_ = 0.05;
-
-      // Gains for angular PID controller
-      // kpAngular_ = 1.0;
-      // kdAngular_ = 0.05;
 
       // Initialize loop terms
-      noCommandIterations_ = 0;
       moveSignal_ = false;
       onFinalApproach_ = false;
       rotationComplete_ = false;
       linearComplete_ = false;
-
-      // Min and Max values
-      // minAngular_ = 0.15;
-      // maxAngular_ = .5;
-
-      // minLinear_ = 0.2;
-      // maxLinear_ = 0.5;
 
       n_.param("kp_linear", kpLinear_, 1.0);
       n_.param("kp_angular", kpAngular_, 1.0);
@@ -95,7 +80,6 @@ class Move
         // Set goal pose for pidCallback
         goal_ = newGoal.pose.pose;
 
-        // ROS_INFO("---------- Moving to Goal --------");
         std::cout << "x: "<< goal_.position.x << "; y: "<< goal_.position.y << std::endl;
 
         // Set loop terms
@@ -245,18 +229,11 @@ class Move
 
   private:
     double kpLinear_;
-    // double kdLinear_;
-
     double kpAngular_;
-    // double kdAngular_;
-
-    int noCommandIterations_;
 
     bool moveSignal_;
     bool onFinalApproach_;
     geometry_msgs::Pose goal_;
-
-    double xGoal_;
 
     bool rotationComplete_;
     bool linearComplete_;
