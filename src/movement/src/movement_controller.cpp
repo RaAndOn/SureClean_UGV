@@ -6,70 +6,75 @@
 #include <geometry_msgs/Pose.h>
 #include <tf/transform_broadcaster.h>
 #include <math.h>
-
-
+#include <std_msgs/Bool.h>
+#include <std_srvs/Empty.h>
 
 class Move
 {
   public:
+      // Point x -- east, y -- north and z -- yaw (up)
     Move()
     {
       // Gains for linear PID controller
-      kpLinear_ = 1.0;
-      kdLinear_ = 0.8;
-      kiLinear_ = 0.0;
+      // kpLinear_ = 1.0;
+      // kdLinear_ = 0.05;
 
       // Gains for angular PID controller
-      kpAngular_ = 1;
-      kdAngular_ = .2;
-      kiAngular_ = .0;
-
-      // Initialize Error terms
-      errLinear_ = 0.0;
-      errDiffLinear_ = 0.0;
-      prevErrLinear_ = 0;
-
-      errAngular_ = 0.0;
-      errDiffAngular_ = 0.0;
-      prevErrAngular_ = 0;
+      // kpAngular_ = 1.0;
+      // kdAngular_ = 0.05;
 
       // Initialize loop terms
       noCommandIterations_ = 0;
-      activeGoal_ = false;
+      moveSignal_ = false;
+      onFinalApproach_ = false;
       rotationComplete_ = false;
+      linearComplete_ = false;
 
       // Min and Max values
-      minAngular_ = 0.2;
-      maxAngular_ = .5;
+      // minAngular_ = 0.15;
+      // maxAngular_ = .5;
 
-      minLinear_ = 0.5;
-      maxLinear_ = 1.0;
+      // minLinear_ = 0.2;
+      // maxLinear_ = 0.5;
 
+      n_.param("kp_linear", kpLinear_, 1.0);
+      n_.param("kp_angular", kpAngular_, 1.0);
+      n_.param("min_angular", minAngular_, 0.15);
+      n_.param("max_angular_", maxAngular_, 0.5);
+      n_.param("min_linear", minLinear_, 0.2);
+      n_.param("max_linear", maxLinear_, 0.5);
+      n_.param("min_linear", minLinear_, 0.2);
+      n_.param("final_approach_range", finalApproachRange_, 2.0);
+      n_.param("angular_thresh", angularThresh_, 0.04);
+      n_.param("linear_thresh", linearThresh_, 0.1);
 
       // Set publishers and subscribers 
       pub_ = n_.advertise<geometry_msgs::Twist>("cmd_vel", 1000);
-      // Uncomment "pointAndShootCallback" and comment "pidCallback" to run simple rotate and move forward code
-      // Or uncomment "pidCallback" and comment "pointAndShootCallback" to run simultaneous rotate and move forward code
-      subOdom_ = n_.subscribe("odometry/gps", 1000, &Move::pointAndShootCallback, this);
-      // subOdom_ = n_.subscribe("odometry/gps", 1000, &Move::pidCallback, this);
-      subGoal_ = n_.subscribe("goal", 1000, &Move::setGoalCallback, this);
+      pubStatus_ = n_.advertise<std_msgs::Bool>("/goal_achieve_status",0);
+      subOdom_ = n_.subscribe("odometry/filtered_gps", 1000, &Move::huskyControlCallback, this);
+      subGoal_ = n_.subscribe("odometry_goal", 1000, &Move::setGoalCallback, this);
+      emergencyStop_ = n_.advertiseService("/emergency_stop",&Move::emergencyStop,this);
+      continueMovement_   = n_.advertiseService("/continue_mission",&Move::continueMove,this);
     }
 
-    int signNum(float num)
+    ~Move() {}
+
+
+    int signNum(double num)
     // Return the sign of a number
     {
       return (num < 0.0) ? -1 : 1;
     }
 
-    float calculateDistance(geometry_msgs::Pose currPose, geometry_msgs::Pose goalPose)
+    double calculateDistance(geometry_msgs::Pose currPose, geometry_msgs::Pose goalPose)
     // This function calculates the linear distance between two points
     {
-      float xErr = currPose.position.x - goalPose.position.x;
-      float yErr = currPose.position.y - goalPose.position.y;
+      double xErr = currPose.position.x - goalPose.position.x;
+      double yErr = currPose.position.y - goalPose.position.y;
       return sqrt(pow(xErr,2) + pow(yErr,2));
     }
 
-    float calculateYawFromQuaterion(geometry_msgs::Pose pose)
+    double calculateYawFromQuaterion(geometry_msgs::Pose pose)
     // Calculate and return the yaw of a pose quaternion
     {
       double roll, pitch, yaw;
@@ -86,7 +91,7 @@ class Move
     void setGoalCallback(const geometry_msgs::Pose newGoal)
     // Set a new goal
     {
-      if(activeGoal_ == false) // only set goal if there is not one currently active
+      if(moveSignal_ == false) // only set goal if there is not one currently active
       {
         // Set the starting odometry as reference
         startOdom_ = *(ros::topic::waitForMessage<nav_msgs::Odometry>("odometry/filtered", n_));
@@ -99,7 +104,9 @@ class Move
 
         // Set loop terms
         rotationComplete_ = false;
-        activeGoal_ = true;
+        linearComplete_ = false;
+        moveSignal_ = true;
+        onFinalApproach_ = false;
       }
       else
       {
@@ -107,49 +114,11 @@ class Move
       }
     }
 
-    //
-    // The following functions primarily relate to the point and shoot fucntion which has the robot rotate then move
-    //
 
-    void pointAndShootCallback(const nav_msgs::Odometry odom)
-    // This function has the robot move to a goal position if a goal is active
-    // It is broken down such that the robot will first rotate and then move forward to simplify things
-    {
-      if(activeGoal_)
-      {
-        geometry_msgs::Twist command;
-
-        if (!rotationComplete_) // Complete angular motion
-        {
-          command = angularController(odom);
-          pub_.publish(command);
-          // If there are more than 10 loops without a command, move on
-          if(noCommandIterations_ > 10)
-          {
-            rotationComplete_ = true;
-            prevErrAngular_ = 0;
-            noCommandIterations_ = 0;
-          }
-        }
-        else // Complete linear motion
-        {
-          command = distanceController(odom);
-          pub_.publish(command);
-          // If there are more than 10 loops without a command, move on
-          if(noCommandIterations_ > 10)
-          {
-            activeGoal_ = false;
-            prevErrLinear_ = 0;
-            noCommandIterations_ = 0;
-          }
-        }
-      }
-    }
-
-    float normalizeAngleDiff(float currAngle, float goalAngle)
+    double normalizeAngleDiff(double currAngle, double goalAngle)
     // This function normalizes the difference between two angles to account for looping
     {
-      float diff = goalAngle - currAngle;
+      double diff = goalAngle - currAngle;
       if (diff > M_PI)
       {
         return diff - 2*M_PI;
@@ -164,172 +133,165 @@ class Move
       }
     }
 
-    geometry_msgs::Twist distanceController(nav_msgs::Odometry odom)
-    // This function moves the robot forward at a minimum speed until it traves a predetermined distance. 
-    // It only moves forward, not back, due to the way the Sureclean robot picks up litter
-    {
-      geometry_msgs::Twist command;
-      float traveled = calculateDistance(odom.pose.pose, startOdom_.pose.pose);
-      errLinear_ = xGoal_ - traveled;
-      if (fabs(errLinear_) < .05)
-      {
-        noCommandIterations_++;
-      }
-      else if (errLinear_ > 0)
-      {
-        command.linear.x = minLinear_;
-      }
-      return command;
-    }
 
-    geometry_msgs::Twist angularController(nav_msgs::Odometry odom)
-    // This function rotates the robot to a pre-determined goal yaw.
-    {
-      geometry_msgs::Twist command;
-      float yawCurr = calculateYawFromQuaterion(odom.pose.pose);
-      errAngular_ = normalizeAngleDiff(yawCurr, yawGoal_);
-
-      if (fabs(errAngular_) < .01)
-      {
-        noCommandIterations_++;
-      }
-      else
-      {
-        noCommandIterations_ = 0;
-        command.angular.z = signNum(errAngular_)*minAngular_;
-      }
-      prevErrAngular_ = errAngular_;
-      return command;
-    }
-
-
-    //
-    // The following functions primarily relate to the PID function which has the robot move and rotate simultaneously
-    //
-
-    void pidCallback(const nav_msgs::Odometry odom)
-    // This function has the robot move to a goal position if a goal is active
-    // It is broken down such that the robot will first rotate and then move forward to simplify things
-    {
-      if(activeGoal_)
-      {
-        geometry_msgs::Twist command = PID(odom);
-        pub_.publish(command);
-        // If there are more than 10 loops without a command, reset and move on
-        if(noCommandIterations_ > 10)
-        {
-          prevErrLinear_ = 0;
-          prevErrAngular_ = 0;
-          noCommandIterations_ = 0;
-          activeGoal_ = false;
-        }
-      }
-    }
-
-    float calculateDeltaYawFromPositions(geometry_msgs::Pose currPose)
+    double calculateDeltaYawFromPositions(geometry_msgs::Pose currPose)
     // This function determines the yaw needed to rotate robot such that it is facing its goal
     {
-      float yawCurr = calculateYawFromQuaterion(currPose); // Get current yaw in odom frame
+      double yawCurr = calculateYawFromQuaterion(currPose); // Get current yaw in odom frame
 
       // Rotate positons by inverse transform, to put them in the robot's body frame
-      float robotFrameX = currPose.position.x*cos(yawCurr) + currPose.position.y*sin(yawCurr);
-      float robotFrameY = -currPose.position.x*sin(yawCurr) + currPose.position.y*cos(yawCurr);
+      double robotFrameX = currPose.position.x*cos(yawCurr) + currPose.position.y*sin(yawCurr);
+      double robotFrameY = -currPose.position.x*sin(yawCurr) + currPose.position.y*cos(yawCurr);
 
-      float robotFrameGoalX = goal_.position.x*cos(yawCurr) + goal_.position.y*sin(yawCurr);
-      float robotFrameGoalY = -goal_.position.x*sin(yawCurr) + goal_.position.y*cos(yawCurr);
+      double robotFrameGoalX = goal_.position.x*cos(yawCurr) + goal_.position.y*sin(yawCurr);
+      double robotFrameGoalY = -goal_.position.x*sin(yawCurr) + goal_.position.y*cos(yawCurr);
 
       // Calculate the delta yaw needed to directly face the goal
-      float deltaX = robotFrameGoalX - robotFrameX;
-      float deltaY = robotFrameGoalY - robotFrameY;
+      double deltaX = robotFrameGoalX - robotFrameX;
+      double deltaY = robotFrameGoalY - robotFrameY;
       return atan2(deltaY, deltaX);
     }
 
-    geometry_msgs::Twist PID(nav_msgs::Odometry odom)
-    // This function performs a PID for the angular rotation.
+    void huskyControlCallback(const nav_msgs::Odometry odom)
     {
       geometry_msgs::Twist command;
-
-      // Angular PID
-      errAngular_ = calculateDeltaYawFromPositions(odom.pose.pose);
-      errDiffAngular_ = errAngular_ - prevErrAngular_;
-      command.angular.z = kpAngular_*errAngular_ + kdAngular_*errDiffAngular_;
-      if (fabs(command.angular.z) < minAngular_ && !rotationComplete_)
+      // double errAngular = calculateDeltaYawFromPositions(odom.pose.pose);
+      double yawCurr = calculateYawFromQuaterion(odom.pose.pose);
+      double errAngular = normalizeAngleDiff(yawCurr, yawGoal_);
+      double errLinear = calculateDistance(odom.pose.pose, goal_);
+      if (moveSignal_)
       {
-        command.angular.z = signNum(command.angular.z)*minAngular_;
-      }
-
-      prevErrAngular_ = errAngular_;
-
-      // Ensure the robot has reached certain angular accuracy before moving forward      
-      if (fabs(errAngular_) < .02)
-      {
-        rotationComplete_ = true;
-      }
-
-      if (rotationComplete_)
-      {
-        errLinear_ = calculateDistance(odom.pose.pose, goal_);
-
-        // Conditions of goal completed
-        if (fabs(errLinear_) < .1)
+        if (errLinear <= finalApproachRange_ && !onFinalApproach_)
         {
-          command.linear.x = 0;
-          noCommandIterations_++;
+          ROS_INFO("FINAL APPROACH");
+          command.angular.z = angularController(errAngular);
+          if (rotationComplete_)
+          {
+            onFinalApproach_ = true;
+          }
         }
         else
         {
-          // Linear PID
-          noCommandIterations_ = 0;
-          errDiffLinear_ = errLinear_ - prevErrLinear_;
-          command.linear.x = kpLinear_*errLinear_ + kdLinear_*errDiffLinear_;
-          if (command.linear.x < 0.0)
+          command.angular.z = angularController(errAngular);
+          if (fabs(errAngular) > M_PI / 24)
           {
-            command.linear.x = 0;
+            command.linear.x = linearController(errLinear);
           }
         }
-        prevErrLinear_ = errLinear_;
       }
-      return command;
+      pub_.publish(command);
+      status_check();
+
+    }
+
+    double angularController(double errAngular)
+    {
+      double commandAngular = 0;
+      if (fabs(errAngular) > angularThresh_ ) {
+        if (fabs(errAngular) > M_PI_2) {
+          errAngular = signNum(errAngular)*M_PI_2;
+        }
+        commandAngular = kpAngular_ * errAngular / M_PI_2;
+        if (fabs(commandAngular) < minAngular_) {
+          commandAngular = signNum(commandAngular) * minAngular_;
+        }
+        if (fabs(commandAngular) > maxAngular_) {
+          commandAngular = signNum(commandAngular) * maxAngular_;
+        }
+        rotationComplete_ = false;
+      }
+      else
+      {
+        rotationComplete_ = true;
+      }
+      return commandAngular;
+      
+    }
+
+    double linearController(double errLinear)
+    // This function moves the robot forward at a minimum speed until it traves a predetermined distance. 
+    // It only moves forward, not back, due to the way the Sureclean robot picks up litter
+    {
+      double commandLinear = 0;
+
+      if (fabs(errLinear) > linearThresh_) {
+        if (errLinear > finalApproachRange_) {
+          errLinear = finalApproachRange_;
+        }
+        commandLinear  = kpLinear_ * minLinear_ * errLinear/finalApproachRange_;
+        if (fabs(commandLinear) < minLinear_) {
+          commandLinear = signNum(commandLinear) * minLinear_;
+        }
+        if (fabs(commandLinear) > maxLinear_) {
+          commandLinear = signNum(commandLinear) * maxLinear_;
+        }
+      }
+      else
+      {
+        linearComplete_ = true;
+      }
+      
+      return commandLinear;
+    }
+
+    void status_check() {
+      std_msgs::Bool status_msgs;
+      status_msgs.data = false;
+      if (linearComplete_) {
+        status_msgs.data = true;
+        moveSignal_ = false;
+        pubStatus_.publish(status_msgs);
+      }
+    }
+
+    bool emergencyStop(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
+        moveSignal_ = false;
+        return true;
+    }
+
+    bool continueMove(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
+        moveSignal_ = true;
+        return true;
     }
 
   private:
-    float kpLinear_;
-    float kdLinear_;
-    float kiLinear_;
+    double kpLinear_;
+    // double kdLinear_;
 
-    float kpAngular_;
-    float kdAngular_;
-    float kiAngular_;
-
-    float errLinear_;
-    float prevErrAngular_;
-    float errDiffLinear_;
-
-    float errAngular_;
-    float prevErrLinear_;
-    float errDiffAngular_;
+    double kpAngular_;
+    // double kdAngular_;
 
     int noCommandIterations_;
 
-    bool activeGoal_;
+    bool moveSignal_;
+    bool onFinalApproach_;
     geometry_msgs::Pose goal_;
-    float yawGoal_;
+    double yawGoal_;
 
-    float xGoal_;
+    double xGoal_;
 
     bool rotationComplete_;
+    bool linearComplete_;
 
     nav_msgs::Odometry startOdom_;
 
-    float minAngular_;
-    float maxAngular_;
+    double minAngular_;
+    double maxAngular_;
 
-    float minLinear_;
-    float maxLinear_;
+    double minLinear_;
+    double maxLinear_;
+
+    double finalApproachRange_;
+    double angularThresh_;
+    double linearThresh_;
+
 
     ros::Publisher pub_;
+    ros::Publisher pubStatus_;
     ros::Subscriber subOdom_;
     ros::Subscriber subGoal_;
+    ros::ServiceServer emergencyStop_;
+    ros::ServiceServer continueMovement_;
     ros::NodeHandle n_;
 };
 
