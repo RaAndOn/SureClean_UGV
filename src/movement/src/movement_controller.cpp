@@ -153,7 +153,7 @@ class Move
         else
         {
           command.angular.z = angularController(errAngular); // Set angular command
-          // If
+          // If the angular error is above a threshold, don't move forward
           if (fabs(errAngular) < angularThreshMovement_)
           {
             command.linear.x = linearController(errLinear);
@@ -162,8 +162,8 @@ class Move
         ROS_INFO("Linear Command: %f", command.linear.x);
         ROS_INFO("Angular Command: %f", command.angular.z);
       }
-      pub_.publish(command);
-      status_check();
+      pub_.publish(command); // Publish command
+      status_check(); // Check if converged
 
     }
 
