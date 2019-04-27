@@ -32,7 +32,7 @@ private:
 
 public:
   GpsNav() {
-    n_.param("autonomous", autonomous_, true);
+    n_.param("/gps_nav_node/autonomous", autonomous_, true);
     magnetic_declination_ = -0.16347917327; // magnetic declination of Pittsburgh
     pubGoal_ = n_.advertise<nav_msgs::Odometry>("/odometry_goal",0); // Publisher: sends goal odometry to controller
     subGoalStatus_ = n_.subscribe("/goal_achieve_status",0,&GpsNav::goalAchieved,this); // Subscriber: sayss if goal has been achieved

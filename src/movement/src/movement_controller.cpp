@@ -15,7 +15,6 @@ class Move
       // Point x -- east, y -- north and z -- yaw (up)
     Move()
     {
-
       // Initialize loop terms
       moveSignal_ = false;
       onFinalApproach_ = false;
@@ -23,30 +22,30 @@ class Move
       linearComplete_ = false;
 
       // Proportional gains
-      n_.param("kp_linear", kpLinear_, 1.0);
-      n_.param("kp_angular", kpAngular_, 1.0);
+      n_.param("/movement_node/kp_linear", kpLinear_, 1.0);
+      n_.param("/movement_node/kp_angular", kpAngular_, 1.0);
       // Angular min and max commands
-      n_.param("min_angular", minAngular_, 0.15);
-      n_.param("max_angular_", maxAngular_, 0.5);
+      n_.param("/movement_node/min_angular", minAngular_, 0.15);
+      n_.param("/movement_node/max_angular", maxAngular_, 0.5);
       // Linear min and max commands
-      n_.param("min_linear", minLinear_, 0.2);
-      n_.param("max_linear", maxLinear_, 0.5);
+      n_.param("/movement_node/min_linear", minLinear_, 0.2);
+      n_.param("/movement_node/max_linear", maxLinear_, 0.5);
       // Range at which to do final adjustment - meters
-      n_.param("final_approach_range", finalApproachRange_, 2.0);
+      n_.param("/movement_node/final_approach_range", finalApproachRange_, 2.0);
       // Angular convergence threshold - radians
-      n_.param("angular_thresh", angularThresh_, 0.04);
+      n_.param("/movement_node/angular_thresh", angularThresh_, 0.04);
       // Angular convergence threshold to perform movement- radians
-      n_.param("angular_thresh_movement", angularThreshMovement_, 0.13);
+      n_.param("/movement_node/angular_thresh_movement", angularThreshMovement_, 0.13);
       // Linear convergence threshold - meters
-      n_.param("linear_thresh", linearThresh_, 0.1);
+      n_.param("/movement_node/linear_thresh", linearThresh_, 0.1);
 
       // Set publishers and subscribers 
       pub_ = n_.advertise<geometry_msgs::Twist>("cmd_vel", 1000); // Publisher: the controller output
-      pubStatus_ = n_.advertise<std_msgs::Bool>("/goal_achieve_status",0); // Publisher: whether goal has been achieved
+      pubStatus_ = n_.advertise<std_msgs::Bool>("goal_achieve_status",0); // Publisher: whether goal has been achieved
       subOdom_ = n_.subscribe("odometry/filtered_gps", 1000, &Move::huskyControlCallback, this); // Subscriber: get current odometry 
       subGoal_ = n_.subscribe("odometry_goal", 1000, &Move::setGoalCallback, this); // Subscriber: sets odometry goal
-      emergencyStop_ = n_.advertiseService("/emergency_stop",&Move::emergencyStop,this); // Service: sets flag to stop movement
-      continueMovement_   = n_.advertiseService("/continue_mission",&Move::continueMove,this); // Service: sets flag to continue movement
+      emergencyStop_ = n_.advertiseService("emergency_stop",&Move::emergencyStop,this); // Service: sets flag to stop movement
+      continueMovement_   = n_.advertiseService("continue_mission",&Move::continueMove,this); // Service: sets flag to continue movement
     }
 
     ~Move() {}
@@ -276,7 +275,7 @@ class Move
 
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "move_pid");
+  ros::init(argc, argv, "movement_node");
   Move move;
   ros::Rate loop_rate(200);
   ROS_INFO("In main\n");
