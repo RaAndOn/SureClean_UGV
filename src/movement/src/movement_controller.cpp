@@ -20,16 +20,16 @@ class Move
       onFinalApproach_ = false;
       rotationComplete_ = false;
       linearComplete_ = false;
-
+      activeGoal_ = false;
       // Proportional gains
       n_.param("/movement_node/kp_linear", kpLinear_, 1.0);
       n_.param("/movement_node/kp_angular", kpAngular_, 1.0);
       // Angular min and max commands
       n_.param("/movement_node/min_angular", minAngular_, 0.15);
-      n_.param("/movement_node/max_angular", maxAngular_, 0.5);
+      n_.param("/movement_node/max_angular", maxAngular_, 0.3);
       // Linear min and max commands
-      n_.param("/movement_node/min_linear", minLinear_, 0.2);
-      n_.param("/movement_node/max_linear", maxLinear_, 0.5);
+      n_.param("/movement_node/min_linear", minLinear_, 0.4);
+      n_.param("/movement_node/max_linear", maxLinear_, 0.75);
       // Range at which to do final adjustment - meters
       n_.param("/movement_node/final_approach_range", finalApproachRange_, 2.0);
       // Angular convergence threshold - radians
@@ -81,7 +81,7 @@ class Move
     void setGoalCallback(const nav_msgs::Odometry newGoal)
     // Set a new goal
     {
-      if(moveSignal_ == false) // only set goal if there is not one currently active
+      if(!activeGoal) // only set goal if there is not one currently active
       {
         // Set goal pose for pidCallback
         goal_ = newGoal.pose.pose;
@@ -93,6 +93,7 @@ class Move
         linearComplete_ = false;
         onFinalApproach_ = false;
         moveSignal_ = true;
+        activeGoal = true;
       }
       else
       {
@@ -137,6 +138,10 @@ class Move
       geometry_msgs::Twist command;
       double errAngular = calculateDeltaYawFromPositions(odom.pose.pose);
       double errLinear = calculateDistance(odom.pose.pose, goal_);
+      if (activeGoal_)
+      {
+        status_check(errLinear);
+      }
       if (moveSignal_) // Only set value if flag is true
       {
         // If within range, perform final yaw correction before final approach
@@ -160,9 +165,11 @@ class Move
         }
         ROS_INFO("Linear Command: %f", command.linear.x);
         ROS_INFO("Angular Command: %f", command.angular.z);
+        pub_.publish(command); // Publish command
+       // status_check(); // Check if converged
       }
-      pub_.publish(command); // Publish command
-      status_check(); // Check if converged
+      //pub_.publish(command); // Publish command
+      //status_check(); // Check if converged
 
     }
 
@@ -201,11 +208,11 @@ class Move
           errLinear = finalApproachRange_;
         }
         commandLinear  = kpLinear_ * minLinear_ * errLinear/finalApproachRange_;
-        if (fabs(commandLinear) < minLinear_) {
-          commandLinear = signNum(commandLinear) * minLinear_;
+        if (commandLinear < minLinear_) {
+          commandLinear = minLinear_;
         }
-        if (fabs(commandLinear) > maxLinear_) {
-          commandLinear = signNum(commandLinear) * maxLinear_;
+        if (commandLinear > maxLinear_) {
+          commandLinear = maxLinear_;
         }
       }
       else
@@ -216,13 +223,15 @@ class Move
       return commandLinear;
     }
 
-    void status_check() {
+    void status_check(double errLinear) {
     // This function determines whether the robot has reachced its goal
       std_msgs::Bool status_msgs;
       status_msgs.data = false;
-      if (linearComplete_ && moveSignal_) {
+      if (errLinear < linearThresh_) {
         status_msgs.data = true;
+        activeGoal_ = false;
         moveSignal_ = false;
+        linearComplete_ = false;
         ROS_INFO("---------- Goal Achieved --------");
         pubStatus_.publish(status_msgs);
       }
