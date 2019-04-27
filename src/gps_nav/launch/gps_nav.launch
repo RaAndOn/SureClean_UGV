@@ -22,6 +22,7 @@
     <param name="max_linear" value="0.5"/>
     <param name="final_approach_range" value="2.0"/>
     <param name="angular_thresh" value="0.04"/>
+    <param name="angular_thresh_movement" value="0.13"/>
     <param name="linear_thresh" value="0.1"/>
   </node>
 </launch>

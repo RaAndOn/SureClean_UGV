@@ -17,36 +17,35 @@ using namespace std;
 
 class GpsNav {
 private:
-  ros::Subscriber subGPS_;
+  ros::NodeHandle n_;
   ros::Publisher pubGoal_;
+  ros::Subscriber subGPS_;
   ros::Subscriber subGoalStatus_;
   ros::ServiceServer serviceCollect_;
   ros::ServiceServer serviceMove_;
-  ros::NodeHandle n_;
-  queue<nav_msgs::Odometry> goalList_;
 
-  sensor_msgs::NavSatFix currGPS_;
-  
-  double magnetic_declination_;
+  queue<nav_msgs::Odometry> goalList_; // Queue of goal locations
+  sensor_msgs::NavSatFix currGPS_; // Current GPS Coordinates
+  bool autonomous_; // Flag to determine if navigation to all goals will happen automatically
 
-  bool autonomous_;
+  double magnetic_declination_; // Magnetic declination
 
 public:
   GpsNav() {
     n_.param("autonomous", autonomous_, true);
-    magnetic_declination_ = -0.16347917327;
-    pubGoal_ = n_.advertise<nav_msgs::Odometry>("/odometry_goal",0);
-    subGoalStatus_ = n_.subscribe("/goal_achieve_status",0,&GpsNav::goalAchieved,this);
-    serviceCollect_ = n_.advertiseService("/collect_goal",&GpsNav::collectGoal,this);
-    serviceMove_ = n_.advertiseService("/move_next_goal",&GpsNav::nextGoalService,this);
-    subGPS_ = n_.subscribe("gps/fix",0,&GpsNav::updateCurrentGPS,this);
+    magnetic_declination_ = -0.16347917327; // magnetic declination of Pittsburgh
+    pubGoal_ = n_.advertise<nav_msgs::Odometry>("/odometry_goal",0); // Publisher: sends goal odometry to controller
+    subGoalStatus_ = n_.subscribe("/goal_achieve_status",0,&GpsNav::goalAchieved,this); // Subscriber: sayss if goal has been achieved
+    subGPS_ = n_.subscribe("gps/fix",0,&GpsNav::updateCurrentGPS,this); // Subscriber: gets latest GPS coordinates
+    serviceCollect_ = n_.advertiseService("/collect_goal",&GpsNav::collectGoal,this); // Service: converts current GPS coordinates to odometry goal
+    serviceMove_ = n_.advertiseService("/move_next_goal",&GpsNav::nextGoalService,this); // Service: begins navigation to goal
   }
 
   ~GpsNav() {}
 
   geometry_msgs::PointStamped latLongtoUTM(double latiInput, double longiInput)
   {
-  // This Function transforms latitude and longitude into the UTM frame
+  // This Function transforms latitude and longitude into a point in the UTM frame
     double utmX = 0, utmY = 0;
     std::string utmZone;
     geometry_msgs::PointStamped utmPointOutput;
@@ -64,22 +63,23 @@ public:
     return utmPointOutput;
   }
 
-  geometry_msgs::PointStamped UTMtoMapPoint(geometry_msgs::PointStamped UTM_input)
+  geometry_msgs::PointStamped UTMtoMapPoint(geometry_msgs::PointStamped UTMInput)
   {
   // This function transforms UTM points into the odometry frame
 
     geometry_msgs::PointStamped odomFrameOutput;
     bool notDone = true;
     tf::TransformListener listener; //create transformlistener object called listener
-    ros::Time time_now = ros::Time::now();
+    ros::Time timeNow = ros::Time::now();
 
     while(notDone)
     {
       try
       {
-        UTM_input.header.stamp = ros::Time::now();
-        listener.waitForTransform("odom", "utm", time_now, ros::Duration(3.0));
-        listener.transformPoint("odom", UTM_input, odomFrameOutput);
+        // Transform UTM point to the odometry frame
+        UTMInput.header.stamp = ros::Time::now();
+        listener.waitForTransform("odom", "utm", timeNow, ros::Duration(3.0));
+        listener.transformPoint("odom", UTMInput, odomFrameOutput);
         notDone = false;
       }
       catch (tf::TransformException& ex)
@@ -114,8 +114,8 @@ public:
     nav_msgs::Odometry odomGoal;
     odomGoal.pose.pose.position.x = goalPoint.point.x;
     odomGoal.pose.pose.position.y = goalPoint.point.y;
+    goalList_.push(odomGoal); // add goal to queue
     ROS_INFO("---------- Goal collected --------");
-    goalList_.push(odomGoal);
     std::cout << "x: "<< odomGoal.pose.pose.position.x << "; y: "<< odomGoal.pose.pose.position.y << std::endl;
     std::cout << "latitude: "<< currGPS_.latitude << "; longitude: "<< currGPS_.longitude << std::endl; 
     return true;
@@ -128,10 +128,13 @@ public:
 
   bool moveToNextGoal() {
   // This function passes waypoints to the controller
+
+    // Raise error if goal list is empty
     if (goalList_.empty()) {
       ROS_ERROR("No goal gps in the goal list");
       return false;
     }
+    // Remove goal from the front of the queue and publish it
     nav_msgs::Odometry nextGoal = goalList_.front();
     pubGoal_.publish(nextGoal);
     goalList_.pop();

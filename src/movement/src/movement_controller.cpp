@@ -22,27 +22,34 @@ class Move
       rotationComplete_ = false;
       linearComplete_ = false;
 
+      // Proportional gains
       n_.param("kp_linear", kpLinear_, 1.0);
       n_.param("kp_angular", kpAngular_, 1.0);
+      // Angular min and max commands
       n_.param("min_angular", minAngular_, 0.15);
       n_.param("max_angular_", maxAngular_, 0.5);
+      // Linear min and max commands
       n_.param("min_linear", minLinear_, 0.2);
       n_.param("max_linear", maxLinear_, 0.5);
+      // Range at which to do final adjustment - meters
       n_.param("final_approach_range", finalApproachRange_, 2.0);
+      // Angular convergence threshold - radians
       n_.param("angular_thresh", angularThresh_, 0.04);
+      // Angular convergence threshold to perform movement- radians
+      n_.param("angular_thresh_movement", angularThreshMovement_, 0.13);
+      // Linear convergence threshold - meters
       n_.param("linear_thresh", linearThresh_, 0.1);
 
       // Set publishers and subscribers 
-      pub_ = n_.advertise<geometry_msgs::Twist>("cmd_vel", 1000);
-      pubStatus_ = n_.advertise<std_msgs::Bool>("/goal_achieve_status",0);
-      subOdom_ = n_.subscribe("odometry/filtered_gps", 1000, &Move::huskyControlCallback, this);
-      subGoal_ = n_.subscribe("odometry_goal", 1000, &Move::setGoalCallback, this);
-      emergencyStop_ = n_.advertiseService("/emergency_stop",&Move::emergencyStop,this);
-      continueMovement_   = n_.advertiseService("/continue_mission",&Move::continueMove,this);
+      pub_ = n_.advertise<geometry_msgs::Twist>("cmd_vel", 1000); // Publisher: the controller output
+      pubStatus_ = n_.advertise<std_msgs::Bool>("/goal_achieve_status",0); // Publisher: whether goal has been achieved
+      subOdom_ = n_.subscribe("odometry/filtered_gps", 1000, &Move::huskyControlCallback, this); // Subscriber: get current odometry 
+      subGoal_ = n_.subscribe("odometry_goal", 1000, &Move::setGoalCallback, this); // Subscriber: sets odometry goal
+      emergencyStop_ = n_.advertiseService("/emergency_stop",&Move::emergencyStop,this); // Service: sets flag to stop movement
+      continueMovement_   = n_.advertiseService("/continue_mission",&Move::continueMove,this); // Service: sets flag to continue movement
     }
 
     ~Move() {}
-
 
     int signNum(double num)
     // Return the sign of a number
@@ -59,7 +66,7 @@ class Move
     }
 
     double calculateYawFromQuaterion(geometry_msgs::Pose pose)
-    // Calculate and return the yaw of a pose quaternion
+    // Calculate and return the yaw of a pose from a quaternion
     {
       double roll, pitch, yaw;
       double quatx = pose.orientation.x;
@@ -79,14 +86,14 @@ class Move
       {
         // Set goal pose for pidCallback
         goal_ = newGoal.pose.pose;
-
+        ROS_INFO("-------New Goal-------");
         std::cout << "x: "<< goal_.position.x << "; y: "<< goal_.position.y << std::endl;
 
-        // Set loop terms
+        // Reset control loop terms
         rotationComplete_ = false;
         linearComplete_ = false;
-        moveSignal_ = true;
         onFinalApproach_ = false;
+        moveSignal_ = true;
       }
       else
       {
@@ -115,7 +122,7 @@ class Move
 
 
     double calculateDeltaYawFromPositions(geometry_msgs::Pose currPose)
-    // This function determines the yaw needed to rotate robot such that it is facing its goal
+    // This function determines the error between the current yaw and the desired position
     {
       double yawCurr = calculateYawFromQuaterion(currPose); // Get current yaw in odom frame
       double dyGoal = goal_.position.y - currPose.position.y;
@@ -125,12 +132,15 @@ class Move
     }
 
     void huskyControlCallback(const nav_msgs::Odometry odom)
+    // This function sets the command velocities for the robot to reach the goal
+    // It prioritizes driving the front of the robot directly over the goal
     {
       geometry_msgs::Twist command;
       double errAngular = calculateDeltaYawFromPositions(odom.pose.pose);
       double errLinear = calculateDistance(odom.pose.pose, goal_);
-      if (moveSignal_)
+      if (moveSignal_) // Only set value if flag is true
       {
+        // If within range, perform final yaw correction before final approach
         if (errLinear <= finalApproachRange_ && !onFinalApproach_)
         {
           command.angular.z = angularController(errAngular);
@@ -142,8 +152,9 @@ class Move
         }
         else
         {
-          command.angular.z = angularController(errAngular);
-          if (fabs(errAngular) < M_PI / 24)
+          command.angular.z = angularController(errAngular); // Set angular command
+          // If
+          if (fabs(errAngular) < angularThreshMovement_)
           {
             command.linear.x = linearController(errLinear);
           }
@@ -160,7 +171,7 @@ class Move
     // This function returns the angular command for the robot
     {
       double commandAngular = 0;
-      if (fabs(errAngular) > angularThresh_ ) {
+      if (fabs(errAngular) > angularThresh_) {
         if (fabs(errAngular) > M_PI_2) {
           errAngular = signNum(errAngular)*M_PI_2;
         }
@@ -248,6 +259,7 @@ class Move
     double maxLinear_;
 
     double finalApproachRange_;
+    double angularThreshMovement_;
     double angularThresh_;
     double linearThresh_;
 
