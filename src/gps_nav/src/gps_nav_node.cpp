@@ -25,7 +25,7 @@ private:
   ros::ServiceServer serviceMove_;
 
   queue<nav_msgs::Odometry> goalList_; // Queue of goal locations
-  nav_msgs::Odometry currOdom_; // Current GPS Coordinates
+  sensor_msgs::NavSatFix currGPS_; // Current GPS Coordinates
   bool autonomous_; // Flag to determine if navigation to all goals will happen automatically
 
   double magnetic_declination_; // Magnetic declination
@@ -36,7 +36,7 @@ public:
     magnetic_declination_ = -0.16347917327; // magnetic declination of Pittsburgh
     pubGoal_ = n_.advertise<nav_msgs::Odometry>("/odometry_goal",0); // Publisher: sends goal odometry to controller
     subGoalStatus_ = n_.subscribe("/goal_achieve_status",0,&GpsNav::goalAchieved,this); // Subscriber: sayss if goal has been achieved
-    subGPS_ = n_.subscribe("odometry/filtered_gps",0,&GpsNav::updateCurrentGPS,this); // Subscriber: gets latest GPS coordinates
+    subGPS_ = n_.subscribe("gps/fix",0,&GpsNav::updateCurrentGPS,this); // Subscriber: gets latest GPS coordinates
     serviceCollect_ = n_.advertiseService("/collect_goal",&GpsNav::collectGoal,this); // Service: converts current GPS coordinates to odometry goal
     serviceMove_ = n_.advertiseService("/move_next_goal",&GpsNav::nextGoalService,this); // Service: begins navigation to goal
   }
@@ -101,22 +101,23 @@ public:
     }
   }
 
-  void updateCurrentGPS(const nav_msgs::Odometry odom) {
+  void updateCurrentGPS(const sensor_msgs::NavSatFix gps) {
   // This callback updates the currGPS_ variable with the robot's current gps coordinates
-    currOdom_ = odom;
+    currGPS_ = gps;
   }
 
   bool collectGoal(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
   // This Service transforms the current lat and long into the odometry frame and stores it as a waypoint goal
-    // geometry_msgs::PointStamped utmGoal = latLongtoUTM(currGPS_.latitude, currGPS_.longitude);
-    // //Transform UTM to map point in odom frame
-    // geometry_msgs::PointStamped goalPoint = UTMtoMapPoint(utmGoal);
-    // nav_msgs::Odometry odomGoal;
-    // odomGoal.pose.pose.position.x = goalPoint.point.x;
-    // odomGoal.pose.pose.position.y = goalPoint.point.y;
-    goalList_.push(currOdom_); // add goal to queue
+    geometry_msgs::PointStamped utmGoal = latLongtoUTM(currGPS_.latitude, currGPS_.longitude);
+    //Transform UTM to map point in odom frame
+    geometry_msgs::PointStamped goalPoint = UTMtoMapPoint(utmGoal);
+    nav_msgs::Odometry odomGoal;
+    odomGoal.pose.pose.position.x = goalPoint.point.x;
+    odomGoal.pose.pose.position.y = goalPoint.point.y;
+    goalList_.push(odomGoal); // add goal to queue
     ROS_INFO("---------- Goal collected --------");
-    std::cout << "x: "<< currOdom_.pose.pose.position.x << "; y: "<< currOdom_.pose.pose.position.y << std::endl;
+    std::cout << "x: "<< odomGoal.pose.pose.position.x << "; y: "<< odomGoal.pose.pose.position.y << std::endl;
+    std::cout << "latitude: "<< currGPS_.latitude << "; longitude: "<< currGPS_.longitude << std::endl; 
     return true;
   }
 
