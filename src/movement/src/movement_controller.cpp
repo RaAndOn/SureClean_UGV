@@ -138,11 +138,12 @@ class Move
       geometry_msgs::Twist command;
       double errAngular = calculateDeltaYawFromPositions(odom.pose.pose);
       double errLinear = calculateDistance(odom.pose.pose, goal_);
+      // If there is an activeGoal_, check for convergence, before moving
       if (activeGoal_)
       {
-        status_check(errLinear);
+        statusCheck(errLinear);
       }
-      if (moveSignal_) // Only set value if flag is true
+      if (moveSignal_) // Only move calculate and publish command if moveSignal_ is true
       {
         // If within range, perform final yaw correction before final approach
         if (errLinear <= finalApproachRange_ && !onFinalApproach_)
@@ -157,8 +158,9 @@ class Move
         else
         {
           command.angular.z = angularController(errAngular); // Set angular command
-          // If the angular error is above a threshold, don't move forward
-          if (fabs(errAngular) < angularThreshMovement_)
+          // Once the robot has achieved angularThresh_, yoyu can move
+          // Only stop if it drops bellow angularThreshMovement_
+          if (fabs(errAngular) < angularThreshMovement_ && rotationComplete_)
           {
             command.linear.x = linearController(errLinear);
           }
@@ -166,10 +168,7 @@ class Move
         ROS_INFO("Linear Command: %f", command.linear.x);
         ROS_INFO("Angular Command: %f", command.angular.z);
         pub_.publish(command); // Publish command
-       // status_check(); // Check if converged
       }
-      //pub_.publish(command); // Publish command
-      //status_check(); // Check if converged
 
     }
 
@@ -202,8 +201,7 @@ class Move
     // This function returns the linear command for the robot
     {
       double commandLinear = 0;
-
-      if (fabs(errLinear) > linearThresh_) {
+      if (errLinear > linearThresh_) {
         if (errLinear > finalApproachRange_) {
           errLinear = finalApproachRange_;
         }
@@ -223,7 +221,7 @@ class Move
       return commandLinear;
     }
 
-    void status_check(double errLinear) {
+    void statusCheck(double errLinear) {
     // This function determines whether the robot has reachced its goal
       std_msgs::Bool status_msgs;
       status_msgs.data = false;
@@ -286,7 +284,7 @@ int main(int argc, char** argv)
 {
   ros::init(argc, argv, "movement_node");
   Move move;
-  ros::Rate loop_rate(200);
+  ros::Rate loop_rate(20);
   ROS_INFO("In main\n");
   while(ros::ok()) {
     ros::spinOnce();
