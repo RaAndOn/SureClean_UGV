@@ -149,7 +149,6 @@ class Move
         if (errLinear <= finalApproachRange_ && !onFinalApproach_)
         {
           command.angular.z = angularController(errAngular);
-          pub_.publish(command); // Publish command
           if (fabs(errAngular) < angularThresh_)
           {
             ROS_INFO("FINAL APPROACH");
