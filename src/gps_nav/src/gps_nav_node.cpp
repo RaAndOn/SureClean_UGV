@@ -86,7 +86,6 @@ public:
       {
         ROS_WARN("%s", ex.what());
         ros::Duration(0.01).sleep();
-        //return;
       }
     }
     return odomFrameOutput;
@@ -117,7 +116,8 @@ public:
     goalList_.push(odomGoal); // add goal to queue
     ROS_INFO("---------- Goal collected --------");
     std::cout << "x: "<< odomGoal.pose.pose.position.x << "; y: "<< odomGoal.pose.pose.position.y << std::endl;
-    std::cout << "latitude: "<< currGPS_.latitude << "; longitude: "<< currGPS_.longitude << std::endl; 
+    ROS_INFO("latitude: %f", currGPS_.latitude);
+    ROS_INFO("longitude: %f", currGPS_.longitude); 
     return true;
   }
 

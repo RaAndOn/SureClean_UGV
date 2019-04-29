@@ -176,6 +176,7 @@ class Move
     // This function returns the angular command for the robot
     {
       double commandAngular = 0;
+      ROS_INFO("Angular Error: %f", errAngular);
       if (fabs(errAngular) > angularThresh_) {
         if (fabs(errAngular) > M_PI_2) {
           errAngular = signNum(errAngular)*M_PI_2;
@@ -192,6 +193,7 @@ class Move
       else
       {
         rotationComplete_ = true;
+        ROS_INFO("Rotation Complete");
       }
       return commandAngular;
       
