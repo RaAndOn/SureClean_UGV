@@ -81,7 +81,7 @@ class Move
     void setGoalCallback(const nav_msgs::Odometry newGoal)
     // Set a new goal
     {
-      if(!activeGoal) // only set goal if there is not one currently active
+      if(!activeGoal_) // only set goal if there is not one currently active
       {
         // Set goal pose for pidCallback
         goal_ = newGoal.pose.pose;
@@ -93,7 +93,7 @@ class Move
         linearComplete_ = false;
         onFinalApproach_ = false;
         moveSignal_ = true;
-        activeGoal = true;
+        activeGoal_ = true;
       }
       else
       {
@@ -149,7 +149,8 @@ class Move
         if (errLinear <= finalApproachRange_ && !onFinalApproach_)
         {
           command.angular.z = angularController(errAngular);
-          if (rotationComplete_)
+          pub_.publish(command); // Publish command
+          if (fabs(errAngular) < angularThresh_)
           {
             ROS_INFO("FINAL APPROACH");
             onFinalApproach_ = true;
@@ -252,6 +253,7 @@ class Move
     double kpAngular_;
 
     bool moveSignal_;
+    bool activeGoal_;
     bool onFinalApproach_;
     geometry_msgs::Pose goal_;
 
