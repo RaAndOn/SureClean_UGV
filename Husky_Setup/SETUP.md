@@ -125,6 +125,9 @@ $ rosrun rqt_runtime_monitor rqt_runtime_monitor
 ```
 
 ## Post Install Configuration
+
+### husky_startup.sh
+
 The file `husky_startup.sh` is a shell script which is meant to be run at startup to setup the husky including:
 
 1) Starting the roscore/husky_core
@@ -141,3 +144,12 @@ Once you have installed that, you can set it to start automatically on boot with
 sudo update-rc.d husky_startup.sh defaults
 sudo update-rc.d husky_startup.sh enable
 ```
+
+### Automatically Connect to TP-Link
+
+To automatically connect to TP-Link over CMU-Device on startup, you must give TP-Link a higher
+'autoconnect priority' using the nmcli tool. You can do so by running the following command:
+```
+$ nmcli connection modify TP-Link_E7E8 connection.autoconnect-priority 10
+```
+Changing `TP-Link_E7E8` to whatever the appropriate network name is.
