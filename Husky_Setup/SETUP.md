@@ -67,15 +67,18 @@ $ rosrun robot_upstart install husky_bringup/launch/um6_config --job husky-core 
 7) On first boot, the username will be administrator and the password will be clearpath.
 8) Please follow the configuration instructions on the screen. If the computer reboots, wait for the PC to boot to the login screen, and re-enter the login credentials.
 9) Once the computer configuration is complete, you may use passwd utility to change administrator account password.
+10) Configure the USB Peripherals to have static tty USB address by following the instructions in the *Configure Static tty USB* section. You
+definitely need to do this for at least the IMU
 11) Configure the IMU
 a) Modify the `/etc/ros/setup.bash` to add the following lines 
 ```
-export HUSKY_IMU_PORT=/dev/ttyUSB0
+export HUSKY_IMU_PORT=/dev/ttyIMU0
 export HUSKY_IMU_RPY="0.0 3.1416 0.0"
 ```
-These will 1) set up the husky to look for IMU data at this USB port and 2) override the default husky IMU orientation to the one we are using on project Sureclean. *NOTE:* `/dev/ttyUSB0` is the port on which IMU data comes in *at time of writing,* confirm this is still the case before running this.
+These will 1) set up the husky to look for IMU data at this USB port and 2) override the default husky IMU orientation to the one we are using on project Sureclean. *NOTE:* `/dev/ttyIMU0` is becomes the port only if you follow the instructions in the *Configure Static tty USB* section
+*DO THAT OR THIS WON'T WORK*.
 
-10) To setup a factory-standard Husky robot, ensure all your peripherals are plugged in, and run the following command:
+12) To setup a factory-standard Husky robot, ensure all your peripherals are plugged in, and run the following command:
 ```
 $ rosrun husky_bringup install
 ```
@@ -140,4 +143,32 @@ Once you have installed that, you can set it to start automatically on boot with
 ```
 sudo update-rc.d husky_startup.sh defaults
 sudo update-rc.d husky_startup.sh enable
+```
+
+## Configure Static tty USB
+Many systems depend on knowing what tty address a peripheral is plugged into, however at boot up these can be arbitrarily randomized.
+This section will provide generic instructions for how to make this static for a device connected via USB. The attached `99-usb-serial.rules`
+contains the specific rules for the USB devices being used on the Project Sureclean Husky.
+
+1) Plug the USB peripheral into any Ubuntu computer and run:
+```
+$ udevadm info -a -n /dev/ttyUSB0 | grep 'serial'
+```
+You should get a return that looks something like `ATTRS{serial}=="FTGNUI4Q"`. There may be more than one return, but you want the random 
+sequence of numbers and letters.
+
+2) To rename the device's tty connection you must add a line to the `99-usb-serial.rules` file. The line should look like this:
+```
+SUBSYSTEM=="tty", ATTRS{serial}=="FTGNUI4Q", SYMLINK+="ttyIMU0"
+```
+As you can guess, replace the serial number in the middle with the serial number you got from the above grep command. You should replace "ttyIMU0" 
+whatever you wish to call your USB peripheral. It is good practice to have it begin with 'tty' and end with a number. As a side note, you are not 
+actually  "renaming it" but creating a symbolic link from whatever ttyUSB you are assigned. But if you reference your new name, it should have the 
+same effect!
+
+3) Place the `99-usb-serial.rules` at `/etc/udev/rules.d/99-usb-serial.rules`
+
+4) Give the file root ownership.
+```
+sudo chown root:root /etc/udev/rules.d/99-usb-serial.rules
 ```
