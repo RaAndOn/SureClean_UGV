@@ -1,0 +1,16 @@
+<launch>
+  <arg name="sim" default="false" />
+  <arg name="navigation_frame" default="map"/>
+  <arg name="coverage" default="true"/>
+
+  <!-- Launch localization if in simulation, otherwise this is handled elsewhere on the Husky-->
+  <include file="$(find sureclean_utils)/launch/ugv.launch" ns="sureclean">
+    <arg name="sim" value="$(arg sim)"/>
+    <arg name="navigation_frame" value="$(arg navigation_frame)"/>
+    <arg name="coverage" value="$(arg coverage)"/>
+    <arg name="id" value="1"/>
+  </include>
+
+  <param name="ugv" command="$(find xacro)/xacro '$(find sureclean_utils)/params/urdf/husky.urdf.xacro' --inorder" />
+
+</launch>

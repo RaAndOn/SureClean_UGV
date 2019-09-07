@@ -43,10 +43,12 @@ $ . ~/.bashrc
 ```
 $ rosrun robot_upstart install husky_base/launch/base.launch --job husky-core --setup '/etc/ros/setup.bash'
 ```
-10) To start launch files for additional standard Husky components, we can augment the husky-core job. Run the following command to add any launch files in the husky_bringup/launch/um6_config/ directory to the job:
+10a) To start launch files for additional standard Husky components, we can augment the husky-core job. Run the following command to add any launch files in the husky_bringup/launch/um6_config/ directory to the job:
 ```
 $ rosrun robot_upstart install husky_bringup/launch/um6_config --job husky-core --augment
 ```
+b) Alternatively the contents of the `/etc/ros/kinetic/husky-core.d` are launched when the husky-core service is run, simply place a launch file in the folder.
+
 
 **Warning** ROS Kinetic is written to run with python 2.7, if you installed Anaconda or have modified your default python settings in some way your computer might try to run this files using python 3. You can check this using the command `python --version`
 
@@ -66,10 +68,11 @@ $ rosrun robot_upstart install husky_bringup/launch/um6_config --job husky-core 
 6) Once the setup process is complete, the PC will turn off. Please unplug the USB drive and turn the PC back on.
 7) On first boot, the username will be administrator and the password will be clearpath.
 8) Please follow the configuration instructions on the screen. If the computer reboots, wait for the PC to boot to the login screen, and re-enter the login credentials.
-9) Once the computer configuration is complete, you may use passwd utility to change administrator account password.
+9) Once the computer configuration is complete, you may use password utility to change administrator account password.
 10) Configure the USB Peripherals to have static tty USB address by following the instructions in the *Configure Static tty USB* section. You
 definitely need to do this for at least the IMU
-11) Configure the IMU
+11) Move the `scripts` folder to the home folder and add it to the PATH via the `~/.bashrc`.
+12) Configure the IMU
 a) Modify the `/etc/ros/setup.bash` to add the following lines 
 ```
 export HUSKY_IMU_PORT=/dev/ttyIMU0
@@ -78,7 +81,11 @@ export HUSKY_IMU_RPY="0.0 3.1416 0.0"
 These will 1) set up the husky to look for IMU data at this USB port and 2) override the default husky IMU orientation to the one we are using on project Sureclean. *NOTE:* `/dev/ttyIMU0` is becomes the port only if you follow the instructions in the *Configure Static tty USB* section
 *DO THAT OR THIS WON'T WORK*.
 
-12) To setup a factory-standard Husky robot, ensure all your peripherals are plugged in, and run the following command:
+b) Go to the `/etc/ros/kinetic/husky-core.d` folder. The contents of this folder are launched when the husky-core service is run. Remove the `um6.launch` file, we will run our own `um7_sureclean.launch` file via `imu_sureclean.sh`.
+
+c) To launch the IMU driver, run the `sureclean_launch.bash` script from the `scripts` folder, which will run the `imu_sureclean.bash` script. This script comes with a parameter of `indoors` and `outdoors`, which will disable and enable magnetometer updates respectively.
+
+13) To setup a factory-standard Husky robot, ensure all your peripherals are plugged in, and run the following command:
 ```
 $ rosrun husky_bringup install
 ```
@@ -144,6 +151,23 @@ Once you have installed that, you can set it to start automatically on boot with
 sudo update-rc.d husky_startup.sh defaults
 sudo update-rc.d husky_startup.sh enable
 ```
+
+### Setup Eigen
+
+Install Eigen3 with the following command:
+```
+$ sudo apt-get install libeigen3-dev
+```
+
+Eigen is not a ROS package and is header only, so we will need to include it in `CMakeLists.txt` files. To make this
+simpler we will add this line to the `~/.bashrc`
+```
+export EIGEN3_INCLUDE_DIR=/usr/include/eigen3
+```
+
+Now we can add the line `INCLUDE_DIRECTORIES ( "$ENV{EIGEN3_INCLUDE_DIR}" )` to any of our `CMakeLists.txt` and use
+Eigen in the package.
+
 
 ## Configure Static tty USB
 Many systems depend on knowing what tty address a peripheral is plugged into, however at boot up these can be arbitrarily randomized.
