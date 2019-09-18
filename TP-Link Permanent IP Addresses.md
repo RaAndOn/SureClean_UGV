@@ -1,8 +1,8 @@
   Base RTk GPS:     192.168.0.100
 
-  Husky Rover GPS : 192.168.0.101
+  Husky Rover GPS : 192.168.0.102
 
-  DJI Rover GPS :   192.168.0.102
+  DJI Rover GPS :   192.168.0.101
 
   UAV Onboard computer : 192.168.0.125
 
