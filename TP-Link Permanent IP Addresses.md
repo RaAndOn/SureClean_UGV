@@ -4,6 +4,8 @@
 
   DJI Rover GPS :   192.168.0.102
 
+  UAV Onboard computer : 192.168.0.125
+
   Nvidia Jetson :   192.168.0.126
 
   Avinash Laptop :  192.168.0.135
