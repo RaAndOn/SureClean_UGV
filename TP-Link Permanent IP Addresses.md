@@ -8,11 +8,6 @@
 
   Nvidia Jetson :   192.168.0.126
 
-  Avinash Laptop :  192.168.0.135
-
-  Josh Laptop :     192.168.0.136
-
-
 
 To add new address : Connect to TP-Link_E7E8
 
