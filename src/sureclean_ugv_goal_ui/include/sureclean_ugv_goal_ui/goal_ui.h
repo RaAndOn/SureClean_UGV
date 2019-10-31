@@ -8,6 +8,7 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <std_msgs/Empty.h>
 #include <std_srvs/Empty.h>
+#include <sureclean_ugv_goal_ui/GPSGoal.h>
 
 class GoalUI {
 public:
@@ -27,6 +28,7 @@ private:
   ros::ServiceServer serviceCollectGoalGPS_;
   ros::ServiceServer serviceCollectGoalOdom_;
   ros::ServiceServer serviceGoToGoal_;
+  ros::ServiceServer serviceServerGPSGoal_;
 
   // Vector of goal locations
   nav_msgs::Path goalList_;
@@ -80,6 +82,11 @@ private:
   /// @brief This function passes waypoints to the controller
   /// @return bool indicating if a goal was successfully published
   bool moveToNextGoal();
+
+  /// @brief This service allows the server to set GPS waypoints
+  /// @param req.latitude & req.longitude
+  bool serverGPSGoal(sureclean_ugv_goal_ui::GPSGoal::Request &req,
+                     sureclean_ugv_goal_ui::GPSGoal::Response &res);
 };
 
 #endif

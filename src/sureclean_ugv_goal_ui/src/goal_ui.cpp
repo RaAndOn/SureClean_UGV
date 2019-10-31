@@ -37,6 +37,8 @@ GoalUI::GoalUI(ros::NodeHandle &privateNH, ros::NodeHandle &publicNH)
   // Service: begins navigation to goal
   serviceGoToGoal_ = publicNH_.advertiseService("go_to_next_goal",
                                                 &GoalUI::nextGoalService, this);
+  serviceServerGPSGoal_ = publicNH_.advertiseService(
+      "server_gps_goal", &GoalUI::serverGPSGoal, this);
 }
 
 GoalUI::~GoalUI() = default;
@@ -83,6 +85,30 @@ bool GoalUI::collectGoalGPSService(std_srvs::Empty::Request & /*req*/,
                         << "; Y: " << goalPose.pose.position.y);
   ROS_INFO_STREAM("Latitude: " << currGPS_.latitude);
   ROS_INFO_STREAM("Longitude: " << currGPS_.longitude);
+  return true;
+}
+
+bool GoalUI::serverGPSGoal(sureclean_ugv_goal_ui::GPSGoal::Request &req,
+                           sureclean_ugv_goal_ui::GPSGoal::Response &res) {
+  const geometry_msgs::PointStamped utmGoal =
+      sureclean::latitudeLongitudeToUTM(req.latitude, req.longitude);
+  // Transform UTM to map point navigation frame
+  geometry_msgs::PointStamped goalPoint =
+      sureclean::transformPointToFrame(utmGoal, navigationFrame_);
+  geometry_msgs::PoseStamped goalPose;
+  goalPose.pose.position.x = goalPoint.point.x;
+  goalPose.pose.position.y = goalPoint.point.y;
+  goalList_.poses.push_back(goalPose); // add goal to queue
+  visualization_msgs::Marker goalMarkers;
+  sureclean::createGoalMarkers(goalList_, navigationFrame_, goalMarkers);
+  pubGoalMarker_.publish(goalMarkers);
+  ROS_INFO_STREAM("---------- Goal collected --------");
+  ROS_INFO_STREAM("X: " << goalPose.pose.position.x
+                        << "; Y: " << goalPose.pose.position.y);
+  ROS_INFO_STREAM("Latitude: " << req.latitude);
+  ROS_INFO_STREAM("Longitude: " << req.longitude);
+  res.odomX = goalPose.pose.position.x;
+  res.odomY = goalPose.pose.position.y;
   return true;
 }
 

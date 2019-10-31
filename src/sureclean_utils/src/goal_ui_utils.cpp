@@ -50,9 +50,9 @@ transformPointToFrame(const geometry_msgs::PointStamped &point,
 }
 
 void createGoalMarkers(const nav_msgs::Path &goalList,
-                        const std::string &frameID,
-                        visualization_msgs::Marker &goalMarkers,
-                        boost::optional<Color> color) {
+                       const std::string &frameID,
+                       visualization_msgs::Marker &goalMarkers,
+                       boost::optional<Color> color) {
   goalMarkers.header.frame_id = frameID;
   goalMarkers.header.stamp = ros::Time::now();
   goalMarkers.ns = "spheres";
@@ -82,4 +82,4 @@ void createGoalMarkers(const nav_msgs::Path &goalList,
     goalMarkers.points.push_back(goal.pose.position);
   }
 }
-}  // namespace sureclean
+} // namespace sureclean

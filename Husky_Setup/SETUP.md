@@ -77,6 +77,7 @@ a) Modify the `/etc/ros/setup.bash` to add the following lines
 ```
 export HUSKY_IMU_PORT=/dev/ttyIMU0
 export HUSKY_IMU_RPY="0.0 3.1416 0.0"
+export HUSKY_IMU_XYZ="-0.05 0.0 0.149"
 ```
 These will 1) set up the husky to look for IMU data at this USB port and 2) override the default husky IMU orientation to the one we are using on project Sureclean. *NOTE:* `/dev/ttyIMU0` is becomes the port only if you follow the instructions in the *Configure Static tty USB* section
 *DO THAT OR THIS WON'T WORK*.
