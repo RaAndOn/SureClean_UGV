@@ -42,7 +42,7 @@ transformPointToFrame(const geometry_msgs::PointStamped &point,
       listener.transformPoint(targetFrame, point, transformedPoint);
       notDone = false;
     } catch (tf::TransformException &ex) {
-      ROS_WARN("%s", ex.what());
+      ROS_ERROR("%s", ex.what());
       ros::Duration(0.01).sleep();
     }
   }
