@@ -1,5 +1,6 @@
 float64 latitude
 float64 longitude
+bool base
 ---
 float64 odomX
 float64 odomY

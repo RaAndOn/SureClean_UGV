@@ -33,6 +33,9 @@ private:
   // Vector of goal locations
   nav_msgs::Path goalList_;
 
+  // Base location
+  boost::optional<geometry_msgs::PoseStamped> baseLocation_;
+
   // Current GPS Coordinates
   sensor_msgs::NavSatFix currGPS_;
 

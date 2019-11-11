@@ -98,7 +98,12 @@ bool GoalUI::serverGPSGoal(sureclean_ugv_goal_ui::GPSGoal::Request &req,
   geometry_msgs::PoseStamped goalPose;
   goalPose.pose.position.x = goalPoint.point.x;
   goalPose.pose.position.y = goalPoint.point.y;
-  goalList_.poses.push_back(goalPose); // add goal to queue
+  if (req.base) {
+    baseLocation_ = goalPose; // set as base location
+  }
+  if (not req.base) {
+    goalList_.poses.push_back(goalPose); // add goal to queue
+  }
   visualization_msgs::Marker goalMarkers;
   sureclean::createGoalMarkers(goalList_, navigationFrame_, goalMarkers);
   pubGoalMarker_.publish(goalMarkers);
@@ -142,6 +147,14 @@ bool GoalUI::moveToNextGoal() {
   pubGoalMarker_.publish(goalMarkers);
   // Raise error if goal list is empty
   if (goalList_.poses.empty()) {
+    if (baseLocation_) {
+      nav_msgs::Path baseMsg;
+      baseMsg.poses.push_back(baseLocation_.get());
+      pubGoalToController_.publish(baseMsg);
+      baseLocation_ = boost::none;
+      ROS_INFO_STREAM("---------- Base sent to controller --------");
+      return true;
+    }
     ROS_WARN_STREAM("No goal gps in the goal list");
     return false;
   }
