@@ -3,6 +3,7 @@
 #include <geometry_msgs/PointStamped.h>
 #include <nav_msgs/Path.h>
 #include <visualization_msgs/Marker.h>
+#include <boost/optional.hpp>
 
 namespace sureclean {
 

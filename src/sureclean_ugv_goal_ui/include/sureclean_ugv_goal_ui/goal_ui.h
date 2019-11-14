@@ -9,6 +9,7 @@
 #include <std_msgs/Empty.h>
 #include <std_srvs/Empty.h>
 #include <sureclean_ugv_goal_ui/GPSGoal.h>
+#include <boost/optional.hpp>
 
 class GoalUI {
 public:
