@@ -28,7 +28,7 @@
       <param name="min_angular_velocity_command" type="double" value="0.15"/>
       <param name="max_angular_velocity_command" type="double" value="0.3"/>
       <param name="min_linear_velocity_command" type="double" value="0.4"/>
-      <param name="max_linear_velocity_command" type="double" value="0.8"/>
+      <param name="max_linear_velocity_command" type="double" value="0.6"/>
       <param name="final_approach_range" type="double" value="1.0"/>
       <param name="angular_threshold_to_begin_movement" type="double" value="0.02"/>
       <param name="angular_threshold_to_continue_movement" type="double" value="0.04"/>
@@ -39,7 +39,7 @@
 
     <node pkg="sureclean_ugv_planner" type="sureclean_ugv_planner_node" name="planner_node" clear_params="true" output="log">
       <param name="coverage_side_meters" type="double" value="1.0"/>
-      <param name="pick_up_width_meters" type="double" value="0.7"/>
+      <param name="pick_up_width_meters" type="double" value="0.5"/>
       <param name="navigation_frame" value="$(arg navigation_frame)"/>
     </node>
   </group>

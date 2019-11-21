@@ -21,8 +21,8 @@ CoveragePlanner::CoveragePlanner(ros::NodeHandle &privateNH,
       publicNH_.subscribe("filtered/gps/odometry", 1,
                           &CoveragePlanner::updateVehiclePoseCallback, this);
 
-  numberOfCleanupPasses_ = static_cast<size_t>(
-      std::ceil(coverageSideMeters_ / pickUpWidthMeters_) + 1);
+  numberOfCleanupPasses_ =
+      static_cast<size_t>(std::ceil(coverageSideMeters_ / pickUpWidthMeters_));
   createGenericWaypoints();
 }
 
@@ -30,15 +30,17 @@ CoveragePlanner::~CoveragePlanner() = default;
 
 void CoveragePlanner::createGenericWaypoints() {
   eigenWaypoints_.clear();
-  eigenWaypoints_.reserve(numberOfCleanupPasses_ * 2);
+  eigenWaypoints_.reserve(numberOfCleanupPasses_ * 5);
   double y = coverageSideMeters_;
-  double x = -0.5 * (coverageSideMeters_ +
-                     std::fmod(coverageSideMeters_, pickUpWidthMeters_));
-  for (auto i = 0; i < numberOfCleanupPasses_; i++) {
+  double x = -0.5 * (pickUpWidthMeters_ * numberOfCleanupPasses_);
+  eigenWaypoints_.emplace_back(-y / 2, 0, 1);
+  eigenWaypoints_.emplace_back(y / 2, 0, 1);
+  for (auto i = 0; i < std::floor(numberOfCleanupPasses_ / 2); i++) {
     // Ensure proper coverage order
-    const auto sign = (i % 2) != 0 ? -1.0 : 1.0;
-    eigenWaypoints_.emplace_back(sign * -y, x + pickUpWidthMeters_ * i, 1);
-    eigenWaypoints_.emplace_back(sign * y, x + pickUpWidthMeters_ * i, 1);
+    eigenWaypoints_.emplace_back(y / 2, x + pickUpWidthMeters_ * i, 1);
+    eigenWaypoints_.emplace_back(-y / 2, x + pickUpWidthMeters_ * i, 1);
+    eigenWaypoints_.emplace_back(-y / 2, -x - pickUpWidthMeters_ * i, 1);
+    eigenWaypoints_.emplace_back(y / 2, -x - pickUpWidthMeters_ * i, 1);
   }
 }
 
