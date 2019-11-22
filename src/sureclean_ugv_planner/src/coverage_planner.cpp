@@ -31,7 +31,7 @@ CoveragePlanner::~CoveragePlanner() = default;
 void CoveragePlanner::createGenericWaypoints() {
   eigenWaypoints_.clear();
   eigenWaypoints_.reserve(numberOfCleanupPasses_ * 5);
-  double y = coverageSideMeters_;
+  double y = coverageSideMeters_ + 0.5;
   double x = -0.5 * (pickUpWidthMeters_ * numberOfCleanupPasses_);
   eigenWaypoints_.emplace_back(-y / 2, 0, 1);
   eigenWaypoints_.emplace_back(y / 2, 0, 1);
