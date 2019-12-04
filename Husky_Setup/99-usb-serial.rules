@@ -1,0 +1,1 @@
+SUBSYSTEM=="tty", ATTRS{serial}=="01BA9A59", SYMLINK+="ttyIMU0"

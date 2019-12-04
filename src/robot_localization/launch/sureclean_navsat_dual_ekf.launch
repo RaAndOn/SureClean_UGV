@@ -1,0 +1,30 @@
+<launch>
+  <arg name="sim" default="false" />
+  <rosparam command="load" file="$(find robot_localization)/params/sureclean_navsat_dual_ekf.yaml" />
+
+  <!-- EKF Odom Node: This node is needed to generate an odom->base_link transform -->
+  <node pkg="robot_localization" type="ekf_localization_node" name="ekf_odom_node" clear_params="true">
+    <remap from="odometry/filtered" to="filtered/no_gps/odometry"/>
+    <remap from="imu/data_raw" to="/imu/data" if="$(arg sim)"/>
+  </node>
+
+  <!-- EKF Node: /sureclean_$(id)/filtered/gps/odometry is used as the Husky's position throughout the code -->
+  <node pkg="robot_localization" type="ekf_localization_node" name="ekf_map_node" clear_params="true">
+    <remap from="odometry/filtered" to="filtered/gps/odometry"/>
+    <remap from="imu/data_raw" to="/imu/data" if="$(arg sim)"/>
+  </node>
+
+  <!-- Navsat Transform: turns gps coordinates to odometry frame, outputs on /sureclean_$(id)/unfiltered/gps/odometry -->
+  <node pkg="robot_localization" type="navsat_transform_node" name="navsat_transform" clear_params="true">
+    <!-- The "from" topics are the defualt navsat topics, the "to" topics are the actual topics being published to by the husky -->
+    <remap from="odometry/gps" to="unfiltered/gps/odometry"/>
+    <remap from="odometry/filtered" to="filtered/gps/odometry"/>
+    <remap from="gps/fix" to="rtk_gps" unless="$(arg sim)"/>
+    <remap from="gps/fix" to="/navsat/fix" if="$(arg sim)"/>
+    <remap from="imu/data" to="/imu/data" if="$(arg sim)"/>
+    <remap from="imu/data" to="imu/data_raw" unless="$(arg sim)"/>
+    <!-- In simulation IMU reads zero when facing magnetic north -->
+    <param name="/yaw_offset" type="double" value="1.5707963" if="$(arg sim)"/>
+  </node>
+
+</launch>

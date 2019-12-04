@@ -1,0 +1,49 @@
+<launch>
+  <arg name="sim"/>
+  <arg name="navigation_frame"/>
+  <arg name="coverage"/>
+
+  <arg name="id" default="1"/>
+
+  <group ns="ugv_$(arg id)">
+    <!-- Launch the emlid reach node for RTK GPS-->
+    <include file="$(find sureclean_utils)/launch/reach_sureclean.launch" unless="$(arg sim)"/>
+
+    <!-- Launch localization if in simulation, otherwise this is handled elsewhere on the Husky-->
+    <include file="$(find robot_localization)/launch/sureclean_navsat_dual_ekf.launch">
+      <arg name="sim" value="$(arg sim)"/>
+    </include>
+
+    <!-- GPS navigation node, handles collecting and sending waypoints to controller-->
+    <node pkg="sureclean_ugv_goal_ui" type="sureclean_ugv_goal_ui_node" name="goal_ui_node" clear_params="true" output="log">
+      <param name="autonomous" value="true"/>
+      <param name="coverage" value="$(arg coverage)"/>
+      <param name="navigation_frame" value="$(arg navigation_frame)"/>
+      <remap from="rtk_gps" to="/navsat/fix" if="$(arg sim)"/>
+    </node>
+
+    <!-- Movement controller-->
+    <node pkg="sureclean_ugv_controller" type="sureclean_ugv_controller_node" name="controller_node" clear_params="true" output="log">
+      <param name="kp_angular" type="double" value="1.0"/>
+      <param name="min_angular_velocity_command" type="double" value="0.15"/>
+      <param name="max_angular_velocity_command" type="double" value="0.3"/>
+      <param name="min_linear_velocity_command" type="double" value="0.4"/>
+      <param name="max_linear_velocity_command" type="double" value="0.6"/>
+      <param name="final_approach_range" type="double" value="1.0"/>
+      <param name="angular_threshold_to_begin_movement" type="double" value="0.02"/>
+      <param name="angular_threshold_to_continue_movement" type="double" value="0.04"/>
+      <param name="linear_threshold_to_achieve_goal" type="double" value=".1"/>
+      <param name="world_frame" value="$(arg navigation_frame)"/>
+      <param name="robot_frame" value="base_link"/>
+    </node>
+
+    <node pkg="sureclean_ugv_planner" type="sureclean_ugv_planner_node" name="planner_node" clear_params="true" output="log">
+      <param name="coverage_side_meters" type="double" value="1.0"/>
+      <param name="pick_up_width_meters" type="double" value="0.5"/>
+      <param name="navigation_frame" value="$(arg navigation_frame)"/>
+    </node>
+  </group>
+
+  <param name="ugv" command="$(find xacro)/xacro '$(find sureclean_utils)/params/urdf/husky.urdf.xacro' --inorder" />
+
+</launch>

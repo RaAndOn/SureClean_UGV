@@ -1,0 +1,22 @@
+axis_linear: 1
+scale_linear: 0.7
+scale_linear_turbo: 1.5
+
+axis_angular: 0
+scale_angular: 0.4
+
+enable_button: 6  # Left Trigger button
+enable_turbo_button: 1  # A button
+
+# 0 X button
+# 1 A button
+# 2 B button
+# 3 Y button
+# 4 left bumper
+# 5 right bumper
+# 6 left trigger
+# 7 right trigger
+# 8 back button
+# 9 start button
+# 10 left thumb
+# 11 right thumb
