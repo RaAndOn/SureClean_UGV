@@ -5,6 +5,7 @@
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
 #include <ros/ros.h>
+#include <sureclean_utils/LitterGoal.h>
 
 class CoveragePlanner {
 public:
@@ -21,9 +22,8 @@ private:
   ros::Subscriber subVehicleOdometry_;
   // Publisher: coverage path
   ros::Publisher pubCoveragePath_;
-  double coverageSideMeters_{};
+  double defaultCoverageSideMeters_{};
   double pickUpWidthMeters_{};
-  size_t numberOfCleanupPasses_;
   std::string navigationFrame_;
   geometry_msgs::PoseStamped vehiclePose_;
   std::vector<Eigen::Vector3d> eigenWaypoints_;
@@ -32,7 +32,7 @@ private:
   /// the area surrounding the goal
   /// @param Original goal waypoint, giving best estimate of litter location
   void createCoverageWaypointsCallback(
-      const geometry_msgs::PoseStamped &originalGoal) const;
+      const sureclean_utils::LitterGoal &originalGoal);
 
   /// @brief Callback to update the vehicles odometry to whatever was most
   /// recently published
@@ -41,7 +41,7 @@ private:
 
   /// @brief Populate eigenWaypoints_ with generic points representing the
   /// location of the waypoints in the litter frame
-  void createGenericWaypoints();
+  void createGenericWaypoints(const double coverageSideMeters);
 };
 
 #endif

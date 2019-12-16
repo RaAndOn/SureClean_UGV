@@ -13,9 +13,7 @@ GoalUI::GoalUI(ros::NodeHandle &privateNH, ros::NodeHandle &publicNH)
   publicNH_.param<std::string>("navigation_frame", navigationFrame_, "map");
   // Publisher: sends goal pose to coverage planner
   pubGoalToCoveragePlanner_ =
-      publicNH_.advertise<geometry_msgs::PoseStamped>("goal/pose", 1);
-  // Publisher: sends goal pose to controller
-  pubGoalToController_ = publicNH_.advertise<nav_msgs::Path>("goal/path", 1);
+      publicNH_.advertise<sureclean_utils::LitterGoal>("goal/pose", 1);
   // Publisher: Create markers for all goals
   pubGoalMarker_ =
       publicNH_.advertise<visualization_msgs::Marker>("markers/goal/raw", 1);
@@ -73,16 +71,23 @@ bool GoalUI::collectGoalGPSService(std_srvs::Empty::Request & /*req*/,
   // Transform UTM to map point navigation frame
   geometry_msgs::PointStamped goalPoint =
       sureclean::transformPointToFrame(utmGoal, navigationFrame_);
-  geometry_msgs::PoseStamped goalPose;
-  goalPose.pose.position.x = goalPoint.point.x;
-  goalPose.pose.position.y = goalPoint.point.y;
-  goalList_.poses.push_back(goalPose); // add goal to queue
+  sureclean_utils::LitterGoal goalPose;
+  goalPose.point.pose.position.x = goalPoint.point.x;
+  goalPose.point.pose.position.y = goalPoint.point.y;
+  if (useCoverage_) { // Indicate use of the default coverage size
+    goalPose.coverageSide = -1.0;
+  }
+  if (not useCoverage_) { // Indicate do not use coverage
+    goalPose.coverageSide = 0.0;
+  }
+  goalList_.push_back(goalPose); // add goal to queue
   visualization_msgs::Marker goalMarkers;
-  sureclean::createGoalMarkers(goalList_, navigationFrame_, goalMarkers);
+  sureclean::createGoalMarkers(sureclean::litterGoalToPath(goalList_),
+                               navigationFrame_, goalMarkers);
   pubGoalMarker_.publish(goalMarkers);
   ROS_INFO_STREAM("---------- Goal collected --------");
-  ROS_INFO_STREAM("X: " << goalPose.pose.position.x
-                        << "; Y: " << goalPose.pose.position.y);
+  ROS_INFO_STREAM("X: " << goalPose.point.pose.position.x
+                        << "; Y: " << goalPose.point.pose.position.y);
   ROS_INFO_STREAM("Latitude: " << currGPS_.latitude);
   ROS_INFO_STREAM("Longitude: " << currGPS_.longitude);
   return true;
@@ -95,41 +100,51 @@ bool GoalUI::serverGPSGoal(sureclean_ugv_goal_ui::GPSGoal::Request &req,
   // Transform UTM to map point navigation frame
   geometry_msgs::PointStamped goalPoint =
       sureclean::transformPointToFrame(utmGoal, navigationFrame_);
-  geometry_msgs::PoseStamped goalPose;
-  goalPose.pose.position.x = goalPoint.point.x;
-  goalPose.pose.position.y = goalPoint.point.y;
-  if (req.base) {
-    baseLocation_ = goalPose; // set as base location
+  sureclean_utils::LitterGoal goalPose;
+  goalPose.point.pose.position.x = goalPoint.point.x;
+  goalPose.point.pose.position.y = goalPoint.point.y;
+  if (useCoverage_) { // Use the given coverage size
+    goalPose.coverageSide = req.coverageSide;
   }
-  if (not req.base) {
-    goalList_.poses.push_back(goalPose); // add goal to queue
+  if (not useCoverage_) { // Indicate do not use coverage
+    goalPose.coverageSide = 0.0;
   }
+  goalList_.push_back(goalPose); // add goal to queue
   visualization_msgs::Marker goalMarkers;
-  sureclean::createGoalMarkers(goalList_, navigationFrame_, goalMarkers);
+  sureclean::createGoalMarkers(sureclean::litterGoalToPath(goalList_),
+                               navigationFrame_, goalMarkers);
   pubGoalMarker_.publish(goalMarkers);
   ROS_INFO_STREAM("---------- Goal collected --------");
-  ROS_INFO_STREAM("X: " << goalPose.pose.position.x
-                        << "; Y: " << goalPose.pose.position.y);
+  ROS_INFO_STREAM("X: " << goalPose.point.pose.position.x
+                        << "; Y: " << goalPose.point.pose.position.y);
   ROS_INFO_STREAM("Latitude: " << req.latitude);
   ROS_INFO_STREAM("Longitude: " << req.longitude);
-  res.odomX = goalPose.pose.position.x;
-  res.odomY = goalPose.pose.position.y;
+  res.odomX = goalPose.point.pose.position.x;
+  res.odomY = goalPose.point.pose.position.y;
+  res.coverageSide = goalPose.coverageSide;
   return true;
 }
 
 bool GoalUI::collectGoalOdomService(std_srvs::Empty::Request & /*req*/,
                                     std_srvs::Empty::Response & /*res*/) {
   std::lock_guard<std::mutex> odomLock(odomMutex_);
-  geometry_msgs::PoseStamped goalPose;
-  goalPose.pose.position.x = currOdom_.pose.pose.position.x;
-  goalPose.pose.position.y = currOdom_.pose.pose.position.y;
-  goalList_.poses.push_back(goalPose); // add goal to queue
+  sureclean_utils::LitterGoal goalPose;
+  goalPose.point.pose.position.x = currOdom_.pose.pose.position.x;
+  goalPose.point.pose.position.y = currOdom_.pose.pose.position.y;
+  if (useCoverage_) { // Indicate use of the default coverage size
+    goalPose.coverageSide = -1.0;
+  }
+  if (not useCoverage_) { // Indicate do not use coverage
+    goalPose.coverageSide = 0.0;
+  }
+  goalList_.push_back(goalPose); // add goal to queue
   visualization_msgs::Marker goalMarkers;
-  sureclean::createGoalMarkers(goalList_, navigationFrame_, goalMarkers);
+  sureclean::createGoalMarkers(sureclean::litterGoalToPath(goalList_),
+                               navigationFrame_, goalMarkers);
   pubGoalMarker_.publish(goalMarkers);
   ROS_INFO_STREAM("---------- Goal collected --------");
-  ROS_INFO_STREAM("X: " << goalPose.pose.position.x
-                        << "; Y: " << goalPose.pose.position.y);
+  ROS_INFO_STREAM("X: " << goalPose.point.pose.position.x
+                        << "; Y: " << goalPose.point.pose.position.y);
   return true;
 }
 
@@ -143,31 +158,18 @@ bool GoalUI::moveToNextGoal() {
   // This function passes waypoints to the controller
 
   visualization_msgs::Marker goalMarkers;
-  sureclean::createGoalMarkers(goalList_, navigationFrame_, goalMarkers);
+  sureclean::createGoalMarkers(sureclean::litterGoalToPath(goalList_),
+                               navigationFrame_, goalMarkers);
   pubGoalMarker_.publish(goalMarkers);
   // Raise error if goal list is empty
-  if (goalList_.poses.empty()) {
-    if (baseLocation_) {
-      nav_msgs::Path baseMsg;
-      baseMsg.poses.push_back(baseLocation_.get());
-      pubGoalToController_.publish(baseMsg);
-      baseLocation_ = boost::none;
-      ROS_INFO_STREAM("---------- Base sent to controller --------");
-      return true;
-    }
+  if (goalList_.empty()) {
     ROS_WARN_STREAM("No goal gps in the goal list");
     return false;
   }
-  if (useCoverage_) {
-    // Remove goal from the front of the queue and publish it
-    const auto nextGoal = goalList_.poses.front();
-    goalList_.poses.erase(goalList_.poses.begin());
-    pubGoalToCoveragePlanner_.publish(nextGoal);
-    ROS_INFO_STREAM("---------- Goal sent to planner --------");
-  } else {
-    pubGoalToController_.publish(goalList_);
-    goalList_.poses.clear();
-    ROS_INFO_STREAM("---------- Goals sent to controller --------");
-  }
+  // Remove goal from the front of the queue and publish it
+  const auto nextGoal = goalList_.front();
+  goalList_.erase(goalList_.begin());
+  pubGoalToCoveragePlanner_.publish(nextGoal);
+  ROS_INFO_STREAM("---------- Goal sent to planner --------");
   return true;
 }

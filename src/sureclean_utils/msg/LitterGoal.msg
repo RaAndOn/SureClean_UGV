@@ -1,0 +1,3 @@
+Header header
+geometry_msgs/PoseStamped point
+float64 coverageSide

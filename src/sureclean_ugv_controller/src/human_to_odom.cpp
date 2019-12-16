@@ -3,6 +3,7 @@
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
 #include <ros/ros.h>
+#include <sureclean_utils/LitterGoal.h>
 #include <sureclean_utils/controller_utils.h>
 #include <tf/transform_listener.h>
 
