@@ -49,7 +49,16 @@ transformPointToFrame(const geometry_msgs::PointStamped &point,
   return transformedPoint;
 }
 
-void createGoalMarkers(const nav_msgs::Path &goalList,
+nav_msgs::Path
+litterGoalToPath(std::vector<sureclean_utils::LitterGoal> goalList) {
+  nav_msgs::Path path{};
+  for (const auto &goal : goalList) {
+    path.poses.push_back(goal.point);
+  }
+  return path;
+}
+
+void createGoalMarkers(const nav_msgs::Path goalList,
                        const std::string &frameID,
                        visualization_msgs::Marker &goalMarkers,
                        boost::optional<Color> color) {

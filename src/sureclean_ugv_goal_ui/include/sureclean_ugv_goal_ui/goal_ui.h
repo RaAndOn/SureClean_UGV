@@ -1,6 +1,7 @@
 #ifndef GOAL_UI_H
 #define GOAL_UI_H
 
+#include <boost/optional.hpp>
 #include <mutex>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
@@ -9,7 +10,7 @@
 #include <std_msgs/Empty.h>
 #include <std_srvs/Empty.h>
 #include <sureclean_ugv_goal_ui/GPSGoal.h>
-#include <boost/optional.hpp>
+#include <sureclean_utils/LitterGoal.h>
 
 class GoalUI {
 public:
@@ -20,7 +21,6 @@ public:
 private:
   ros::NodeHandle privateNH_;
   ros::NodeHandle publicNH_;
-  ros::Publisher pubGoalToController_;
   ros::Publisher pubGoalToCoveragePlanner_;
   ros::Publisher pubGoalMarker_;
   ros::Subscriber subGPS_;
@@ -32,10 +32,7 @@ private:
   ros::ServiceServer serviceServerGPSGoal_;
 
   // Vector of goal locations
-  nav_msgs::Path goalList_;
-
-  // Base location
-  boost::optional<geometry_msgs::PoseStamped> baseLocation_;
+  std::vector<sureclean_utils::LitterGoal> goalList_;
 
   // Current GPS Coordinates
   sensor_msgs::NavSatFix currGPS_;

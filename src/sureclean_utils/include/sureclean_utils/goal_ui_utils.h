@@ -1,9 +1,10 @@
 #ifndef GOAL_UI_UTILS_H
 #define GOAL_UI_UTILS_H
+#include <boost/optional.hpp>
 #include <geometry_msgs/PointStamped.h>
 #include <nav_msgs/Path.h>
+#include <sureclean_utils/LitterGoal.h>
 #include <visualization_msgs/Marker.h>
-#include <boost/optional.hpp>
 
 namespace sureclean {
 
@@ -32,10 +33,13 @@ transformPointToFrame(const geometry_msgs::PointStamped &point,
 /// @param goalList - path which we wish to visualize
 /// @param frameID - Frame in which to publish the goal
 /// @param goalMarkers - Visualization msg to fill with markers
-void createGoalMarkers(const nav_msgs::Path &goalList,
-                        const std::string &frameID,
-                        visualization_msgs::Marker &goalMarkers,
-                        boost::optional<Color> color = boost::none);
+void createGoalMarkers(const nav_msgs::Path goalList,
+                       const std::string &frameID,
+                       visualization_msgs::Marker &goalMarkers,
+                       boost::optional<Color> color = boost::none);
+
+nav_msgs::Path
+litterGoalToPath(std::vector<sureclean_utils::LitterGoal> goalList);
 }
 
 #endif
